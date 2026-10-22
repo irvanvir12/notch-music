@@ -2,6 +2,7 @@ name: Release AppImage
 
 on:
   push:
+    branches: [main]
     tags: ['v*']
 
 permissions:
@@ -16,17 +17,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
 
       - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 python3-gi python3-cairo python3-gi-cairo \
+          trap 'tail -n 20 /tmp/notch-apt.log | while IFS= read -r line; do printf "::error::%s\n" "$line"; done' ERR
+          sudo apt-get -o Acquire::Retries=3 update 2>&1 | tee /tmp/notch-apt.log
+          sudo apt-get -o Acquire::Retries=3 install -y python3 python3-gi python3-cairo python3-gi-cairo \
             gir1.2-gtk-3.0 gir1.2-gstreamer-1.0 libgdk-pixbuf2.0-bin \
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav \
-            adwaita-icon-theme mksquashfs desktop-file-utils
+            adwaita-icon-theme mksquashfs desktop-file-utils 2>&1 | tee /tmp/notch-apt.log
 
       - name: Validate and test
         run: |
@@ -49,6 +51,7 @@ jobs:
           sha256sum -c Notch-Music-x86_64.AppImage.sha256
 
       - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
