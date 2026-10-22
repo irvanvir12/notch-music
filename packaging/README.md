@@ -1,8 +1,8 @@
 # AppImage build
 
-Build target: Linux x86_64, Zorin OS 18 / Ubuntu 24.04 (glibc 2.39 or newer). Compatibility with older distributions is not claimed.
+Build base: Ubuntu 24.04 / Zorin OS 18. Runtime target: Linux x86_64 with glibc 2.39 or newer, including updated CachyOS/Arch. Compatibility with older distributions is not claimed.
 
-The package includes Python 3.12, PyGObject, Pycairo, GTK 3, GStreamer plugins/codecs, image loaders, introspection data, icon assets, and library dependencies. The host supplies glibc, desktop/audio services, fonts, X11/XWayland, and graphics drivers.
+The package includes Python 3.12, PyGObject, Pycairo, GTK 3, GStreamer plugins/codecs, image loaders, introspection data, icon assets, and library dependencies. The host supplies glibc, desktop/audio services, fonts, a Wayland compositor supporting layer-shell or X11/XWayland, and graphics drivers. Native Wayland needs GTK layer-shell; install `gir1.2-gtklayershell-0.1` on the Ubuntu build host to bundle its library and typelib. The release workflow includes it.
 
 Build from the project root:
 
@@ -33,3 +33,5 @@ Headless verification (without opening a desktop window):
 ```
 
 `--appimage-extract-and-run` also runs the app on systems that do not allow FUSE mounting.
+
+Native Arch/CachyOS packaging is in `packaging/arch/PKGBUILD`; run `packaging/arch/build-package.sh` as a regular user on Arch/CachyOS. The AppImage builder itself uses Debian library paths and must run on its Ubuntu/Zorin build base, not directly on Arch.

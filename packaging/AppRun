@@ -19,7 +19,6 @@ export GDK_PIXBUF_MODULE_FILE="$cache_dir/pixbuf-loaders.cache"
 "$APPDIR/usr/bin/gdk-pixbuf-query-loaders" > "$GDK_PIXBUF_MODULE_FILE"
 export GST_REGISTRY_1_0="$cache_dir/gstreamer-registry.bin"
 unset GTK_PATH GTK_MODULES
-export GDK_BACKEND=x11
 if [ "${1:-}" = '--self-test' ]; then
     shift
     exec "$APPDIR/usr/bin/python3" "$APPDIR/usr/share/notch-music/packaged_check.py" "$@"

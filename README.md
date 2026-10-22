@@ -16,7 +16,7 @@ chmod +x Notch-Music-x86_64.AppImage
 ./Notch-Music-x86_64.AppImage
 ```
 
-Target paket: **Linux x86_64, Zorin OS 18 / Ubuntu 24.04 atau lebih baru, glibc ≥ 2.39**. Python, GTK, GStreamer, dan codec utama disertakan. AppImage dapat dipindahkan ke folder lain tanpa membawa source proyek.
+Target paket: **Linux x86_64 dengan glibc ≥ 2.39**, termasuk Zorin OS 18 / Ubuntu 24.04 dan CachyOS/Arch yang diperbarui. Python, GTK, GStreamer, dan codec utama disertakan. AppImage dapat dipindahkan ke folder lain tanpa membawa source proyek.
 
 Jika FUSE tidak tersedia:
 
@@ -75,6 +75,46 @@ sudo apt install python3 python3-gi python3-cairo python3-gi-cairo \
 ./run.sh ~/Music/lagu.flac
 ```
 
+## CachyOS / Arch Linux
+
+AppImage juga dapat dipakai di CachyOS x86_64 yang diperbarui. Jika FUSE tidak tersedia, gunakan `--appimage-extract-and-run` seperti di atas.
+
+Paket native `.pkg.tar.zst` juga tersedia di [Releases](https://github.com/irvanvir12/notch-music/releases/latest):
+
+```bash
+sudo pacman -Syu
+sudo pacman -U ./notch-music-0.2.0-1-x86_64.pkg.tar.zst
+notch-music
+```
+
+Untuk menjalankan source dengan dependensi native:
+
+```bash
+sudo pacman -Syu --needed git python python-gobject python-cairo gtk3 gtk-layer-shell \
+  gstreamer gst-plugins-base gst-plugins-good gst-libav adwaita-icon-theme
+git clone https://github.com/irvanvir12/notch-music.git
+cd notch-music
+./run.sh
+```
+
+Alternatif paket native yang dikelola pacman (jalankan sebagai pengguna biasa, bukan root):
+
+```bash
+sudo pacman -Syu --needed base-devel
+./packaging/arch/build-package.sh
+```
+
+Skrip membuat arsip dari checkout, menguji, membangun `.pkg.tar.zst`, lalu menawarkan instalasi melalui `makepkg -si`. Paket memasang perintah `notch-music` dan launcher menu aplikasi. Ini paket lokal, belum dipublikasikan ke AUR.
+
+Pada Wayland dengan compositor yang mendukung layer-shell, aplikasi memilih Wayland native dan menempel di sisi atas layar. GNOME/Zorin tetap memakai XWayland. Untuk fallback pada CachyOS Wayland, pasang `xorg-xwayland`. Anda dapat memaksa backend:
+
+```bash
+NOTCH_GDK_BACKEND=x11 ./run.sh
+NOTCH_GDK_BACKEND=wayland ./run.sh
+```
+
+Bila compositor tidak mendukung layer-shell, fallback XWayland dipakai jika tersedia. Dukungan posisi, transparansi, dan panel tetap bergantung pada compositor. CI menguji source, build, dan instalasi paket di container Arch; ini bukan pengujian visual pada desktop CachyOS asli.
+
 ## Build dan pengujian
 
 Lihat [panduan packaging](packaging/README.md) untuk membangun AppImage. Folder `dist/`, runtime unduhan, cache, dan konfigurasi lokal diabaikan Git. Binary AppImage didistribusikan melalui aset release.
@@ -88,7 +128,7 @@ Workflow [Release AppImage](.github/workflows/release.yml) menguji, membangun, d
 
 ## Catatan desktop dan lirik
 
-Pada GNOME Wayland, launcher memakai XWayland untuk posisi atas dan keep-above. Window manager menentukan posisi akhir; panel sistem dapat bertumpuk dengan notch. Area di luar notch tetap meneruskan klik, dan aplikasi tidak mengubah pengaturan panel desktop.
+Pada GNOME Wayland, aplikasi memakai XWayland untuk posisi atas dan keep-above. Window manager menentukan posisi akhir; panel sistem dapat bertumpuk dengan notch. Area di luar notch tetap meneruskan klik, dan aplikasi tidak mengubah pengaturan panel desktop.
 
 Tema **Blur** bersifat transparan; efek kabur sebenarnya bergantung pada compositor. Lirik tersinkron memerlukan timestamp; lirik tanpa timing menampilkan kalimat awal serta teks penuh pada tooltip. Highlight mengikuti **per baris/kalimat**, bukan per kata. Spotify/MPRIS, autostart, dan penyimpanan antrean antar-sesi belum tersedia.
 

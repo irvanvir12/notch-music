@@ -26,6 +26,8 @@ VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
 BASE_LIBS = ['libgtk-3.so.0', 'libgdk-3.so.0', 'libgirepository-1.0.so.1',
              'libgstreamer-1.0.so.0', 'libgsttag-1.0.so.0', 'libgstpbutils-1.0.so.0',
              'libgstapp-1.0.so.0', 'libgdk_pixbuf-2.0.so.0', 'libpangoft2-1.0.so.0']
+if (LIB / 'libgtk-layer-shell.so.0').is_file():
+    BASE_LIBS.append('libgtk-layer-shell.so.0')
 # The host supplies glibc, its loader and device-specific graphics drivers.
 EXCLUDE = re.compile(r'^(ld-linux|lib(c|m|dl|pthread|rt|resolv|util|nss_[^.]+)\.so)')
 
@@ -53,7 +55,7 @@ with tempfile.TemporaryDirectory(prefix='notch-appimage-') as work:
     for name in ('icons/Adwaita', 'icons/hicolor', 'glib-2.0/schemas', 'mime', 'themes/Default'):
         if (Path('/usr/share') / name).is_dir():
             tree(Path('/usr/share') / name, app / 'usr/share' / name)
-    for name in ('notch_music.py', 'metadata.py', 'selection.py', 'themes.py'):
+    for name in ('notch_music.py', 'metadata.py', 'selection.py', 'themes.py', 'desktop_support.py'):
         copy(ROOT / name, app / 'usr/share/notch-music' / name)
     copy(PACK / 'packaged_check.py', app / 'usr/share/notch-music/packaged_check.py')
     copy(PACK / 'AppRun', app / 'AppRun')

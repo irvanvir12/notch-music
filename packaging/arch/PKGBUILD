@@ -1,0 +1,34 @@
+pkgname=notch-music
+pkgver=0.2.0
+pkgrel=1
+pkgdesc='Compact Linux desktop music player with synchronized lyrics'
+arch=('x86_64')
+url='https://github.com/irvanvir12/notch-music'
+depends=('python' 'python-gobject' 'python-cairo' 'gtk3' 'gtk-layer-shell'
+         'gstreamer' 'gst-plugins-base' 'gst-plugins-good' 'gst-libav' 'adwaita-icon-theme')
+optdepends=('xorg-xwayland: GNOME Wayland and fallback window positioning'
+            'desktop-file-utils: desktop launcher registration')
+source=("notch-music-${pkgver}.tar.gz")
+# The archive is assembled locally from the checkout by build-package.sh.
+sha256sums=('SKIP')
+
+check() {
+    cd "$srcdir/notch-music-${pkgver}"
+    /usr/bin/python -m unittest discover -s tests -v
+}
+
+package() {
+    cd "$srcdir/notch-music-${pkgver}"
+    install -d "$pkgdir/usr/lib/notch-music/assets"
+    install -m644 notch_music.py metadata.py selection.py themes.py desktop_support.py "$pkgdir/usr/lib/notch-music/"
+    install -m644 assets/notch-music-logo-v2.png "$pkgdir/usr/lib/notch-music/assets/"
+    install -Dm644 packaging/notch-music.desktop "$pkgdir/usr/share/applications/notch-music.desktop"
+    install -Dm644 assets/notch-music-logo-v2.png "$pkgdir/usr/share/pixmaps/notch-music.png"
+    install -Dm644 README.md "$pkgdir/usr/share/doc/notch-music/README.md"
+    install -d "$pkgdir/usr/bin"
+    cat > "$pkgdir/usr/bin/notch-music" <<'LAUNCHER'
+#!/bin/sh
+exec /usr/bin/python /usr/lib/notch-music/notch_music.py "$@"
+LAUNCHER
+    chmod 755 "$pkgdir/usr/bin/notch-music"
+}

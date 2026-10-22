@@ -13,7 +13,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  arch:
+    name: Arch / CachyOS native package
+    runs-on: ubuntu-24.04
+    container: archlinux:base-devel
+    timeout-minutes: 20
+    steps:
+      - name: Bootstrap Arch container
+        run: pacman -Syu --noconfirm --needed git
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Test, build and install native package
+        run: |
+          mkdir -p /out
+          bash packaging/arch/validate-container.sh "$GITHUB_WORKSPACE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch-package
+          path: /out/*.pkg.tar.zst
+          if-no-files-found: error
+
   appimage:
+    needs: arch
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -28,7 +50,7 @@ jobs:
         run: |
           sudo apt-get -o Acquire::Retries=3 update 2>&1 | tee /tmp/notch-apt.log
           sudo apt-get -o Acquire::Retries=3 install -y python3 python3-gi python3-cairo python3-gi-cairo \
-            gir1.2-gtk-3.0 gir1.2-gstreamer-1.0 libgdk-pixbuf2.0-bin \
+            gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 gir1.2-gstreamer-1.0 libgdk-pixbuf2.0-bin \
             gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav \
             adwaita-icon-theme squashfs-tools desktop-file-utils 2>&1 | tee /tmp/notch-apt.log
 
@@ -46,11 +68,17 @@ jobs:
       - name: Build AppImage
         run: /usr/bin/python3 packaging/build_appimage.py
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: arch-package
+          path: dist
+
       - name: Verify packaged application
         run: |
           ./dist/Notch-Music-x86_64.AppImage --appimage-extract-and-run --self-test
           cd dist
           sha256sum -c Notch-Music-x86_64.AppImage.sha256
+          sha256sum *.pkg.tar.zst > arch-package.sha256
 
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/')
@@ -62,6 +90,8 @@ jobs:
             dist/Notch-Music-x86_64.AppImage \
             dist/Notch-Music-x86_64.AppImage.sha256 \
             dist/build-info.json \
+            dist/*.pkg.tar.zst \
+            dist/arch-package.sha256 \
             --repo "$GITHUB_REPOSITORY" \
             --title "Notch Music $RELEASE_TAG" \
             --notes-file CHANGELOG.md \

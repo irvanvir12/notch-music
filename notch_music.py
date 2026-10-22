@@ -11,8 +11,10 @@ from pathlib import Path
 from metadata import read_metadata, parse_lyrics
 from selection import resolve_selection
 from themes import THEMES, theme_css
+from desktop_support import configure_backend, get_layer_shell, anchor_window
 
 import gi
+configure_backend()
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gst', '1.0')
 from gi.repository import Gtk, Gdk, GLib, Gst, Pango, GdkPixbuf
@@ -67,6 +69,9 @@ def clock(seconds):
 class Notch(Gtk.Window):
     def __init__(self, files):
         super().__init__(title='Notch Music')
+        self.layer_shell = get_layer_shell()
+        if self.layer_shell:
+            anchor_window(self, self.layer_shell)
         self.set_name('notch-window')
         icon = Path(__file__).resolve().parent / 'assets/notch-music-logo-v2.png'
         if icon.is_file():
@@ -263,7 +268,10 @@ class Notch(Gtk.Window):
         monitor = display.get_primary_monitor() or display.get_monitor(0)
         area = monitor.get_geometry()
         self.set_size_request(area.width, -1)
-        self.move(area.x, area.y)
+        if self.layer_shell:
+            self.layer_shell.set_monitor(self, monitor)
+        else:
+            self.move(area.x, area.y)
 
     def update_input_region(self, *_):
         window = self.get_window()
@@ -833,7 +841,13 @@ class Notch(Gtk.Window):
 
 if __name__ == '__main__':
     if not Gtk.init_check()[0]:
-        sys.exit('Tidak dapat terhubung ke desktop. Jalankan ./run.sh dari terminal sesi Linux Anda.')
+        sys.exit('Tidak dapat terhubung ke desktop. Jalankan dari sesi Linux Anda; untuk fallback X11/Wayland, pasang XWayland atau gtk-layer-shell.')
+    display = Gdk.Display.get_default()
+    if ('Wayland' in type(display).__name__ and not get_layer_shell()
+            and os.environ.get('DISPLAY') and not os.environ.get('NOTCH_GDK_BACKEND')
+            and os.environ.get('GDK_BACKEND') != 'x11'):
+        os.environ['GDK_BACKEND'] = 'x11'
+        os.execv(sys.executable, [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]])
     window = Notch(sys.argv[1:])
     window.show_all()
     Gtk.main()

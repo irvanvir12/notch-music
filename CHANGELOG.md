@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.0
+
+- Menambahkan pemilihan Wayland native melalui GTK layer-shell untuk compositor yang mendukungnya, dengan fallback X11/XWayland.
+- Mempertahankan perilaku GNOME/Zorin serta menyediakan override `NOTCH_GDK_BACKEND`.
+- Menambahkan paket native Arch/CachyOS, launcher, dan pengujian build/instalasi dalam container Arch.
+- Menyertakan GTK layer-shell pada AppImage release dan panduan CachyOS.
+- Menyediakan installer integrasi logo AppImage untuk menu desktop dan ikon file.
+
 ## v0.1.1
 
 Paket publik pertama yang telah melewati build serta pemeriksaan otomatis GitHub Actions.

@@ -18,6 +18,11 @@ for name in THEMES:
 for name in ('playbin', 'flacdec', 'vorbisdec', 'opusdec', 'avdec_mp3', 'autoaudiosink', 'pulsesink'):
     assert Gst.ElementFactory.find(name), f'Missing GStreamer plugin: {name}'
 appdir = Path(os.environ['APPDIR'])
+if (appdir / 'usr/lib/girepository-1.0/GtkLayerShell-0.1.typelib').is_file():
+    gi.require_version('GtkLayerShell', '0.1')
+    from gi.repository import GtkLayerShell
+    assert GtkLayerShell.get_minor_version() >= 6
+
 assert Path(gi.__file__).is_relative_to(appdir)
 assert Path(cairo.__file__).is_relative_to(appdir)
 with tempfile.TemporaryDirectory() as folder:
