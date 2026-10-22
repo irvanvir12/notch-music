@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.1
+
+- Memperbaiki fokus keyboard dan pemfilteran langsung pada pencarian antrean.
+- Mencari nama file, judul, dan artis dari metadata FLAC, termasuk lagu di luar 100 hasil yang tampil.
+- Mendukung beberapa kata, perbedaan kapitalisasi, tanda baca, dan aksen.
+- Menyamakan judul/artis yang ditampilkan dengan metadata pencarian; Enter memutar hasil pertama.
+- Menambahkan pengujian regresi pencarian, dengan total 30 tes.
+
 ## v0.2.0
 
 - Menambahkan pemilihan Wayland native melalui GTK layer-shell untuk compositor yang mendukungnya, dengan fallback X11/XWayland.

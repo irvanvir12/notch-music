@@ -51,7 +51,7 @@ Klik **＋** untuk membuka dialog pemilih file terpisah. Pilih satu lagu, **Ctrl
 
 Untuk mengambil isi folder, buka folder lalu klik **Select** tanpa memilih file. Lagu dalam subfolder ikut dipindai di latar belakang. Anda juga bisa menyeret file musik ke notch.
 
-Klik ikon antrean untuk membuka/menutup panel. Pencarian menjangkau seluruh antrean, dengan maksimal 100 hasil ditampilkan sekaligus. Klik lagu untuk memutarnya atau ikon tempat sampah untuk menghapusnya dari antrean.
+Klik ikon antrean untuk membuka/menutup panel. Pencarian langsung memfilter nama file, judul, dan artis dari metadata FLAC di seluruh antrean, dengan maksimal 100 hasil ditampilkan sekaligus. Pencarian mengabaikan kapitalisasi dan mendukung beberapa kata dalam urutan berbeda. Tekan Enter untuk memutar hasil pertama. Klik lagu untuk memutarnya atau ikon tempat sampah untuk menghapusnya dari antrean.
 
 | Kontrol | Fungsi |
 | --- | --- |
@@ -83,7 +83,7 @@ Paket native `.pkg.tar.zst` juga tersedia di [Releases](https://github.com/irvan
 
 ```bash
 sudo pacman -Syu
-sudo pacman -U ./notch-music-0.2.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./notch-music-0.2.1-1-x86_64.pkg.tar.zst
 notch-music
 ```
 

@@ -6,6 +6,8 @@ import threading
 import random
 import math
 import json
+import re
+import unicodedata
 import cairo
 from pathlib import Path
 from metadata import read_metadata, parse_lyrics
@@ -66,6 +68,29 @@ def clock(seconds):
     return f'{seconds // 60}:{seconds % 60:02}'
 
 
+def normalize_search(text):
+    text = unicodedata.normalize('NFKD', text.casefold())
+    text = ''.join(char for char in text if not unicodedata.combining(char))
+    return ' '.join(re.findall(r'[^\W_]+', text, re.UNICODE))
+
+
+def track_details(path, metadata):
+    artist, separator, title = path.stem.partition(' - ')
+    return (metadata.get('title') or (title if separator else path.stem),
+            metadata.get('artist') or (artist if separator else path.parent.name))
+
+
+def search_tracks(queue, query, metadata):
+    words = normalize_search(query).split()
+    matches = []
+    for index, path in enumerate(queue):
+        title, artist = track_details(path, metadata.get(path, {}))
+        haystack = normalize_search(f'{path.stem} {title} {artist}')
+        if all(word in haystack for word in words):
+            matches.append((index, path))
+    return matches
+
+
 class Notch(Gtk.Window):
     def __init__(self, files):
         super().__init__(title='Notch Music')
@@ -96,6 +121,8 @@ class Notch(Gtk.Window):
         if visual:
             self.set_visual(visual)
         self.queue = []
+        self.queue_metadata = {}
+        self.metadata_pending = set()
         self.index = -1
         self.playing = False
         self.muted = False
@@ -435,6 +462,7 @@ class Notch(Gtk.Window):
                     self.shuffle_remaining.insert(random.randrange(len(self.shuffle_remaining) + 1), len(self.queue) - 1)
         if self.index < 0 and self.queue:
             self.load(0)
+        self.index_queue_metadata()
         self.update_status()
         if self.drawer_mode == 'queue':
             self.refresh_queue()
@@ -706,19 +734,68 @@ class Notch(Gtk.Window):
                 if found:
                     label.set_text(value)
 
+    def index_queue_metadata(self):
+        pending = [path for path in dict.fromkeys(self.queue)
+                   if path not in self.queue_metadata and path not in self.metadata_pending]
+        if not pending:
+            return
+        self.metadata_pending.update(pending)
+        def read():
+            results = {}
+            for path in pending:
+                metadata = read_metadata(path)
+                results[path] = {key: metadata[key] for key in ('title', 'artist')}
+            GLib.idle_add(self.queue_metadata_ready, results)
+        threading.Thread(target=read, daemon=True).start()
+
+    def queue_metadata_ready(self, results):
+        self.queue_metadata.update(results)
+        self.metadata_pending.difference_update(results)
+        if self.drawer_mode == 'queue':
+            self.refresh_queue()
+        return False
+
+    def focus_search(self, widget=None, event=None):
+        if self.drawer_mode != 'queue':
+            return False
+        self.set_accept_focus(True)
+        timestamp = event.time if event is not None else Gtk.get_current_event_time()
+        if not self.layer_shell:
+            # Dock-style windows can remain unfocused on X11/XWayland unless
+            # explicitly activated following the user's click.
+            self.present_with_time(timestamp)
+            if self.get_window():
+                self.get_window().focus(timestamp)
+        self.search.grab_focus()
+        return False
+
+    def on_search_changed(self, entry):
+        if self.drawer_mode == 'queue' and self.queue_ui_ready and entry is self.search:
+            self.refresh_queue()
+            self.queue_scroll.get_vadjustment().set_value(0)
+
+    def activate_search_result(self, entry):
+        matches = search_tracks(self.queue, entry.get_text(), self.queue_metadata)
+        if matches:
+            self.load(matches[0][0])
+
     def show_queue(self, *_, force=False):
         if self.drawer_mode == 'queue' and not force:
             self.close_drawer()
             return
+        self.queue_ui_ready = False
         self.open_drawer('queue', 'Antrean musik')
         actions = Gtk.Box()
         self.button(actions, 'Clear', 'Kosongkan antrean (file musik tetap tersimpan)', self.clear_queue)
         self.drawer_content.pack_start(actions, False, False, 0)
         self.search = Gtk.SearchEntry()
         self.search.set_placeholder_text('Cari lagu atau artis…')
-        self.search.connect('search-changed', lambda *_: self.refresh_queue())
+        self.search.connect('changed', self.on_search_changed)
+        self.search.connect('activate', self.activate_search_result)
+        self.search.connect('button-press-event', self.focus_search)
         self.drawer_content.pack_start(self.search, False, False, 0)
         scroll = Gtk.ScrolledWindow()
+        self.queue_scroll = scroll
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_min_content_height(190)
         scroll.set_max_content_height(190)
@@ -728,8 +805,10 @@ class Notch(Gtk.Window):
         self.listing.connect('row-activated', lambda box, row: self.load(row.track_index) if hasattr(row, 'track_index') else None)
         scroll.add(self.listing)
         self.drawer_content.pack_start(scroll, False, False, 0)
+        self.queue_ui_ready = True
         self.refresh_queue()
         self.drawer_content.show_all()
+        GLib.idle_add(self.focus_search)
 
     def mark_current_track(self):
         for row in self.listing.get_children():
@@ -748,8 +827,8 @@ class Notch(Gtk.Window):
         generation = self.queue_generation
         for row in self.listing.get_children():
             row.destroy()
-        query = self.search.get_text().casefold().strip()
-        matches = [(i, p) for i, p in enumerate(self.queue) if query in p.stem.casefold()]
+        query = self.search.get_text().strip()
+        matches = search_tracks(self.queue, query, self.queue_metadata)
         rows = []
         for index, path in matches[:100]:
             row = Gtk.ListBoxRow()
@@ -761,13 +840,13 @@ class Notch(Gtk.Window):
             box.pack_start(image, False, False, 0)
             text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
             box.pack_start(text, True, True, 0)
-            artist, separator, title = path.stem.partition(' - ')
-            name = Gtk.Label(label=title if separator else path.stem, xalign=0)
+            title, artist = track_details(path, self.queue_metadata.get(path, {}))
+            name = Gtk.Label(label=title, xalign=0)
             name.set_ellipsize(Pango.EllipsizeMode.END)
             name.set_max_width_chars(40)
             name.get_style_context().add_class('track-title')
             text.pack_start(name, False, False, 0)
-            subtitle = Gtk.Label(label=artist if separator else path.parent.name, xalign=0)
+            subtitle = Gtk.Label(label=artist, xalign=0)
             subtitle.set_ellipsize(Pango.EllipsizeMode.END)
             subtitle.set_max_width_chars(40)
             subtitle.get_style_context().add_class('track-artist')
