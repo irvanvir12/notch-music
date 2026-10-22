@@ -24,6 +24,16 @@ Jika FUSE tidak tersedia:
 ./Notch-Music-x86_64.AppImage --appimage-extract-and-run
 ```
 
+## Ikon dan menu aplikasi Linux
+
+Logo sudah disertakan di dalam AppImage. Untuk mendaftarkannya pada menu aplikasi dan memasang ikon khusus file di GNOME/Zorin, jalankan dari source:
+
+```bash
+/usr/bin/python3 packaging/install_desktop.py /path/ke/Notch-Music-x86_64.AppImage
+```
+
+Installer hanya bekerja pada akun pengguna: memasang ikon dalam beberapa ukuran ke `~/.local/share/icons`, menambahkan launcher ke `~/.local/share/applications`, dan mencoba mengatur ikon file melalui metadata GIO. Tidak membuka aplikasi atau mengubah asosiasi audio default. Jika AppImage dipindahkan, jalankan installer lagi dengan lokasi barunya. Ikon khusus file bergantung pada dukungan file manager; refresh folder jika ikon lama masih terlihat.
+
 ## Fitur
 
 - Pemutar tanpa bingkai di tengah atas layar, dengan lengkungan yang menyatu ke sisi atas.
