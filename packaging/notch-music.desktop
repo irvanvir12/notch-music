@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Notch Music
+Comment=Compact desktop music player with synchronized lyrics
+Exec=notch-music %F
+Icon=notch-music
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+MimeType=audio/flac;audio/mpeg;audio/ogg;audio/x-wav;
+StartupWMClass=notch-music

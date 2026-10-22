@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+APPDIR=${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}
+export APPDIR
+export LD_LIBRARY_PATH="$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export PYTHONHOME="$APPDIR/usr"
+export PYTHONPATH="$APPDIR/usr/lib/python3/dist-packages"
+export PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
+export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0"
+export GST_PLUGIN_SYSTEM_PATH_1_0="$APPDIR/usr/lib/gstreamer-1.0"
+export GST_PLUGIN_PATH_1_0="$APPDIR/usr/lib/gstreamer-1.0"
+export GST_PLUGIN_SCANNER="$APPDIR/usr/bin/gst-plugin-scanner"
+export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
+export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf/loaders"
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/notch-music"
+mkdir -p "$cache_dir"
+export GDK_PIXBUF_MODULE_FILE="$cache_dir/pixbuf-loaders.cache"
+"$APPDIR/usr/bin/gdk-pixbuf-query-loaders" > "$GDK_PIXBUF_MODULE_FILE"
+export GST_REGISTRY_1_0="$cache_dir/gstreamer-registry.bin"
+unset GTK_PATH GTK_MODULES
+export GDK_BACKEND=x11
+if [ "${1:-}" = '--self-test' ]; then
+    shift
+    exec "$APPDIR/usr/bin/python3" "$APPDIR/usr/share/notch-music/packaged_check.py" "$@"
+fi
+exec "$APPDIR/usr/bin/python3" "$APPDIR/usr/share/notch-music/notch_music.py" "$@"

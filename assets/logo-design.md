@@ -1,0 +1,7 @@
+# Notch Music logo v2
+
+File: `notch-music-logo-v2.png`. Generated with the built-in imagegen tool; original alpha retained. A musical note merges with sound-wave curves over a dark notch-shaped tile, with green and coral/pink accents. The previous SVG remains available in `packaging/notch-music.svg`.
+
+Final generation prompt:
+
+> Use case: logo-brand. Create one polished original app icon for a Linux music player called Notch Music. Inspired by the music-streaming energy of Spotify and the elegant musical-note feel of Apple Music, combine these influences into ONE cohesive distinctive original emblem. A bold flowing musical eighth-note shape whose upper stroke smoothly becomes two rhythmic sound-wave arcs, balanced compact silhouette, memorable at 32 pixels. Deep near-black rounded-square app tile, with the integrated music symbol in vivid fresh green transitioning subtly into coral pink/red accents. Beautiful precise geometric curves, sophisticated clean flat vector-like design, restrained gradient only in the symbol, high contrast. Small subtle notch-shaped indentation at the tile's top edge to connect with the application's identity. Single front-facing square app icon centered filling the image with generous safe margins. Transparent background OUTSIDE the rounded square tile. No text, no letters, no wordmark, no watermark, no mockup, no extra icons or design sheet. Avoid copying the exact Spotify three-arc-in-circle logo or the exact Apple Music logo; the result must be its own identity.

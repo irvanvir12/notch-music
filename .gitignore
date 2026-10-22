@@ -1,0 +1,30 @@
+# Build outputs and downloaded tooling
+/dist/
+/build/
+/packaging/tools/
+*.AppImage
+*.AppDir/
+*.squashfs
+
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Local configuration, credentials and editor files
+.env
+.env.*
+!.env.example
+.agents/
+.codex/
+.aws/
+.idea/
+.vscode/
+*.log
+*.tmp
+.DS_Store
+*~

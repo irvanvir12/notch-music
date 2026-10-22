@@ -1,0 +1,63 @@
+name: Release AppImage
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  appimage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-gi python3-cairo python3-gi-cairo \
+            gir1.2-gtk-3.0 gir1.2-gstreamer-1.0 libgdk-pixbuf2.0-bin \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav \
+            adwaita-icon-theme mksquashfs desktop-file-utils
+
+      - name: Validate and test
+        run: |
+          desktop-file-validate packaging/notch-music.desktop
+          /usr/bin/python3 -m unittest discover -s tests -v
+
+      - name: Download pinned AppImage runtime
+        run: |
+          mkdir -p packaging/tools
+          curl -fL --retry 3 https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64 -o packaging/tools/runtime-x86_64
+          sha256sum -c packaging/runtime.sha256
+
+      - name: Build AppImage
+        run: /usr/bin/python3 packaging/build_appimage.py
+
+      - name: Verify packaged application
+        run: |
+          ./dist/Notch-Music-x86_64.AppImage --appimage-extract-and-run --self-test
+          cd dist
+          sha256sum -c Notch-Music-x86_64.AppImage.sha256
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            dist/Notch-Music-x86_64.AppImage \
+            dist/Notch-Music-x86_64.AppImage.sha256 \
+            dist/build-info.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Notch Music $RELEASE_TAG" \
+            --notes-file CHANGELOG.md \
+            --verify-tag
