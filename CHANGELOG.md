@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.2
+
+- Mencegah file pertama otomatis terpilih saat membuka dialog tambah musik atau berpindah folder.
+- Memastikan Select tanpa pilihan manual mengambil seluruh isi folder.
+- Mempertahankan pilihan melalui klik file, Ctrl+klik, navigasi keyboard, dan Ctrl+A.
+- Menambahkan pengujian regresi seleksi file; total 33 tes lolos, serta pengujian dialog GTK.
+
 ## v0.2.1
 
 - Memperbaiki fokus keyboard dan pemfilteran langsung pada pencarian antrean.

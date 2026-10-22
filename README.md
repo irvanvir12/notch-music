@@ -47,7 +47,7 @@ Installer hanya bekerja pada akun pengguna: memasang ikon dalam beberapa ukuran 
 
 ## Menambahkan musik
 
-Klik **＋** untuk membuka dialog pemilih file terpisah. Pilih satu lagu, **Ctrl+klik** untuk beberapa lagu, atau **Ctrl+A** untuk seluruh file yang ditampilkan, lalu **Select**.
+Klik **＋** untuk membuka dialog pemilih file terpisah. Saat dialog dibuka atau folder diganti, tidak ada file yang otomatis terpilih. Pilih satu lagu, **Ctrl+klik** untuk beberapa lagu, atau **Ctrl+A** untuk seluruh file yang ditampilkan, lalu **Select**.
 
 Untuk mengambil isi folder, buka folder lalu klik **Select** tanpa memilih file. Lagu dalam subfolder ikut dipindai di latar belakang. Anda juga bisa menyeret file musik ke notch.
 
@@ -83,7 +83,7 @@ Paket native `.pkg.tar.zst` juga tersedia di [Releases](https://github.com/irvan
 
 ```bash
 sudo pacman -Syu
-sudo pacman -U ./notch-music-0.2.1-1-x86_64.pkg.tar.zst
+sudo pacman -U ./notch-music-0.2.2-1-x86_64.pkg.tar.zst
 notch-music
 ```
 

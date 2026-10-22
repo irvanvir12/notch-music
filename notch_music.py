@@ -11,7 +11,7 @@ import unicodedata
 import cairo
 from pathlib import Path
 from metadata import read_metadata, parse_lyrics
-from selection import resolve_selection
+from selection import resolve_selection, prepare_file_selection
 from themes import THEMES, theme_css
 from desktop_support import configure_backend, get_layer_shell, anchor_window
 
@@ -407,6 +407,7 @@ class Notch(Gtk.Window):
         dialog.add_buttons('Batal', Gtk.ResponseType.CANCEL, 'Select', 100)
         dialog.set_default_response(100)
         dialog.set_select_multiple(True)
+        selected_files = prepare_file_selection(dialog)
         dialog.set_default_size(800, 520)
         music = Path.home() / 'Music'
         if music.is_dir():
@@ -426,7 +427,7 @@ class Notch(Gtk.Window):
         dialog.set_extra_widget(hint)
         dialog.connect('file-activated', lambda chooser: chooser.response(100))
         if dialog.run() == 100:
-            files, folders = resolve_selection(dialog.get_filenames(), dialog.get_current_folder())
+            files, folders = resolve_selection(selected_files(), dialog.get_current_folder())
             dialog.destroy()
             if files:
                 self.add_files(files)
