@@ -9,7 +9,8 @@ Build from the project root:
 ```bash
 mkdir -p packaging/tools
 curl -fL https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64 -o packaging/tools/runtime-x86_64
-python3 packaging/build_appimage.py
+sha256sum -c packaging/runtime.sha256
+/usr/bin/python3 packaging/build_appimage.py
 ```
 
 Requires the app's development/runtime dependencies, `mksquashfs`, `ldd`, and `dpkg-query`. The builder writes `dist/Notch-Music-x86_64.AppImage`, a SHA-256 checksum, and `build-info.json`. The latter records the downloaded runtime hash. The upstream continuous runtime may change between builds.

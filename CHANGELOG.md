@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.1
+
+Paket publik pertama yang telah melewati build serta pemeriksaan otomatis GitHub Actions.
+
+- Memperbaiki pemasangan dependensi Ubuntu untuk pembuat AppImage.
+- Menguji source dan paket pada runner Ubuntu 24.04 sebelum publikasi.
+- Menyertakan AppImage, checksum SHA-256, dan informasi build pada release.
+
 ## v0.1.0
 
 Rilis awal Notch Music untuk Linux x86_64.
