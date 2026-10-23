@@ -9,6 +9,16 @@ Notch Music adalah aplikasi desktop dengan pemutar ringkas, lirik tersinkron, da
 
 ## Unduh dan jalankan
 
+Pilih paket di [GitHub Releases](https://github.com/irvanvir12/notch-music/releases/latest):
+
+| OS | Paket | Cara menjalankan |
+| --- | --- | --- |
+| Ubuntu / Zorin / Linux x86_64 | `Notch-Music-x86_64.AppImage` | Beri izin executable lalu jalankan |
+| CachyOS / Arch x86_64 | `notch-music-0.3.0-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
+| Windows 10/11 x64 (experimental) | `Notch-Music-Windows-x64.zip` | Ekstrak seluruh ZIP lalu buka `Notch-Music.exe` |
+
+Contoh untuk AppImage:
+
 Unduh **Notch-Music-x86_64.AppImage** dari [GitHub Releases](https://github.com/irvanvir12/notch-music/releases/latest), lalu:
 
 ```bash
@@ -138,7 +148,7 @@ Bila compositor tidak mendukung layer-shell, fallback XWayland dipakai jika ters
 
 ## Windows 10/11 x64 — experimental
 
-Jalur Windows menggunakan backend Win32 dengan runtime Python, GTK dan GStreamer yang ikut dibundel. Paket Windows hanya dimasukkan ke release setelah build dan smoke test di runner Windows berhasil. Dukungan ini masih **experimental**: transparansi, penempatan jendela, dan snap perlu diuji langsung pada desktop Windows.
+Build Windows x64 telah melewati unit test dan smoke test paket portable di runner Windows. Jalur Windows menggunakan backend Win32 dengan runtime Python, GTK dan GStreamer yang ikut dibundel. Paket Windows hanya dimasukkan ke release setelah build dan smoke test di runner Windows berhasil. Dukungan ini masih **experimental**: transparansi, penempatan jendela, dan snap perlu diuji langsung pada desktop Windows.
 
 ### Menjalankan source di Windows
 
