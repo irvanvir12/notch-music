@@ -1,5 +1,5 @@
 pkgname=notch-music
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=1
 pkgdesc='Floating island and notch music player with synchronized lyrics and audio visualizer'
 arch=('x86_64')

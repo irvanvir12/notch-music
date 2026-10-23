@@ -14,7 +14,7 @@ Pilih paket di [GitHub Releases](https://github.com/irvanvir12/notch-music/relea
 | OS | Paket | Cara menjalankan |
 | --- | --- | --- |
 | Ubuntu / Zorin / Linux x86_64 | `Notch-Music-x86_64.AppImage` | Beri izin executable lalu jalankan |
-| CachyOS / Arch x86_64 | `notch-music-0.3.0-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
+| CachyOS / Arch x86_64 | `notch-music-0.3.1-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
 | Windows 10/11 x64 (experimental) | `Notch-Music-Windows-x64.zip` | Ekstrak seluruh ZIP lalu buka `Notch-Music.exe` |
 
 Contoh untuk AppImage:
@@ -48,13 +48,13 @@ Installer hanya bekerja pada akun pengguna: memasang ikon dalam beberapa ukuran 
 
 Screenshot aplikasi dari desktop pengguna; klik gambar untuk melihat ukuran penuh.
 
-![Player mengambang dengan queue dan lirik tersinkron](assets/screenshots/floating-lyrics-queue.png)
+![1. Floating player — tampilan awal saat aplikasi dibuka](assets/screenshots/floating-player.png)
 
-| Player mengambang | Queue di bawah player |
+| 2. Queue di bawah player | 3. Queue dan lirik adaptif |
 | --- | --- |
-| ![Floating player](assets/screenshots/floating-player.png) | ![Floating queue dan pencarian](assets/screenshots/floating-queue.png) |
+| ![Floating queue dan pencarian](assets/screenshots/floating-queue.png) | ![Floating player dengan queue dan lirik](assets/screenshots/floating-lyrics-queue.png) |
 
-| Menempel sebagai notch | Notch dengan queue | Notch dengan lirik |
+| 4. Menempel sebagai notch | 5. Notch dengan queue | 6. Notch dengan lirik |
 | --- | --- | --- |
 | ![Notch player](assets/screenshots/notch-player.png) | ![Notch queue](assets/screenshots/notch-queue.png) | ![Notch lyrics dan visualizer](assets/screenshots/notch-lyrics.png) |
 
@@ -68,7 +68,13 @@ Screenshot aplikasi dari desktop pengguna; klik gambar untuk melihat ukuran penu
 - **Lirik adaptif:** satu kalimat di mode ringkas. Saat mengambang dengan queue aktif, lirik memanjang di kanan; beberapa baris mengikuti timestamp dan baris yang lewat menghilang.
 - **Visualizer audio:** batang spektrum bersegmen dan pantulan di atas/bawah lirik, mengikuti musik serta warna tema; mereda saat pause/mute.
 - **Dark, Light, Blur:** warna teks kontras mengikuti tema; Blur transparan, efek kabur bergantung compositor. Pilihan tema tersimpan otomatis.
-- **Menu ⋯:** Browse, Queue, Volume, Lirik (On/Off), Tema, dan Close. Menu tema tetap terbuka saat memilih.
+- **Menu ⋯:** Browse, Queue, Volume, Lirik (On/Off), Tema, Minimize saat mengambang, dan Close. Menu tema tetap terbuka saat memilih.
+
+## Minimize dan sembunyikan notch
+
+Saat mengambang, **⋯ → Minimize** berada sebelum Close. Musik tetap berjalan; buka kembali lewat taskbar. Pada Wayland layer-shell, jendela taskbar pemulihan menyediakan tombol **Kembalikan player**.
+
+Saat menempel ke atas, klik **segitiga di tengah bawah notch** hingga mengarah **ke atas** untuk mengaktifkan auto-hide. Player bergeser ke atas, menyisakan tab kecil. Arahkan pointer ke tepi atas di posisi notch untuk membukanya sementara; saat pointer keluar, player langsung bergeser menutup lagi. Hover tidak mengubah mode auto-hide. Saat terbuka, klik segitiga hingga mengarah **ke bawah** untuk menjadikannya tetap terbuka. Queue, lirik, dan pemutaran tetap dipertahankan.
 
 ## Menambahkan musik
 
@@ -85,6 +91,8 @@ Player awal hanya menampilkan kontrol musik yang ringkas. Saat mengambang, **⋯
 | ⋯ → Volume | Slider volume (awal 30%) dan speaker mute/unmute |
 | ⋯ → Lirik (On) / (Off) | Tampilkan/sembunyikan lirik |
 | ⋯ → Tema | Pilih Dark, Light, atau Blur |
+| ⋯ → Minimize | Minimalkan player saat mengambang; pulihkan lewat taskbar |
+| Segitiga bawah notch | Aktifkan auto-hide; klik lagi untuk tetap terbuka |
 | ⋯ → Close | Keluar |
 
 ## Jalankan dari source
@@ -112,7 +120,7 @@ Paket native `.pkg.tar.zst` juga tersedia di [Releases](https://github.com/irvan
 
 ```bash
 sudo pacman -Syu
-sudo pacman -U ./notch-music-0.3.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./notch-music-0.3.1-1-x86_64.pkg.tar.zst
 notch-music
 ```
 

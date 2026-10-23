@@ -30,6 +30,8 @@ CSS = b'''
 #notch.floating { border-radius: 20px; border-top: 1px solid #292b35; }
 #notch.docked { border-color: transparent; border-radius: 0 0 16px 16px; box-shadow: none; transition: none; }
 #player { padding: 8px 8px 9px; }
+#dock-handle { background: #101116; color: #b7bbc8; border: none; box-shadow: none; border-radius: 0 0 8px 8px; padding: 0 10px; min-width: 24px; min-height: 12px; font-size: 10px; }
+#dock-handle:hover { color: #fafafa; }
 #drawer { padding: 8px; }
 #panel-divider { min-width: 1px; min-height: 0; border: none; background: linear-gradient(to bottom, rgba(145,151,166,0), rgba(145,151,166,0.65) 25%, rgba(145,151,166,0.65) 75%, rgba(145,151,166,0)); }
 #panel-divider.horizontal { background: linear-gradient(to right, rgba(145,151,166,0), rgba(145,151,166,0.65) 25%, rgba(145,151,166,0.65) 75%, rgba(145,151,166,0)); }
@@ -118,6 +120,12 @@ class Notch(Gtk.Window):
         self.snap_tick = None
         self.connection_progress = 0.0
         self.bezel_bar = None
+        self.dock_autohide = False
+        self.autohide_wait_exit = False
+        self.hover_left_at = None
+        self.pointer_inside = False
+        self.browse_open = False
+        self.restore_window = None
         self.layer_shell = get_layer_shell()
         if self.layer_shell:
             anchor_window(self, self.layer_shell)
@@ -184,8 +192,19 @@ class Notch(Gtk.Window):
         Gtk.StyleContext.add_provider_for_screen(self.get_screen(), self.css_provider, 600)
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(root)
+        self.body_revealer = Gtk.Revealer()
+        self.body_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_DOWN)
+        self.body_revealer.set_transition_duration(220)
+        self.body_revealer.set_reveal_child(True)
+        root.pack_start(self.body_revealer, False, False, 0)
         center = Gtk.Box()
-        root.pack_start(center, False, False, 0)
+        self.body_revealer.add(center)
+        self.dock_handle = Gtk.Button(label='▴')
+        self.dock_handle.set_name('dock-handle')
+        self.dock_handle.set_halign(Gtk.Align.CENTER)
+        self.dock_handle.set_no_show_all(True)
+        self.dock_handle.connect('clicked', self.toggle_dock_autohide)
+        root.pack_start(self.dock_handle, False, False, 0)
         self.left_space = Gtk.Box()
         self.left_space.set_size_request(24, -1)
         center.pack_start(self.left_space, True, True, 0)
@@ -392,6 +411,10 @@ class Notch(Gtk.Window):
         self.drag_dest_add_uri_targets()
         self.connect('drag-data-received', self.drop)
         GLib.timeout_add(100, self.tick)
+        self.hover_source = GLib.timeout_add(60, self.poll_notch_hover)
+        self.add_events(Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK)
+        self.connect('enter-notify-event', self.notch_pointer_crossing, True)
+        self.connect('leave-notify-event', self.notch_pointer_crossing, False)
         self.build_player_menu(volume_row)
         self.add_files(files)
 
@@ -457,6 +480,8 @@ class Notch(Gtk.Window):
             theme_menu.append(choice)
             self.theme_menu_items[key] = choice
         self.player_menu.append(Gtk.SeparatorMenuItem())
+        minimize, _ = item('Minimize', 'window-minimize-symbolic', self.minimize_player)
+        minimize.set_no_show_all(True)
         item('Close', 'window-close-symbolic', lambda *_: self.close())
         self.player_menu.connect('show', lambda *_: self.sync_menu_state())
         self.player_menu.show_all()
@@ -524,6 +549,7 @@ class Notch(Gtk.Window):
             self.menu_lyrics_label.set_markup(f'Lirik <span size="small">({state})</span>')
             self.theme_menu_items[self.theme].set_active(True)
             self.menu_volume_label.set_text(f'Volume · {round(self.volume.get_value() * 100)}%')
+            self.menu_entries['Minimize'].set_visible(not self.docked)
         finally:
             self._syncing_menu = False
 
@@ -591,6 +617,98 @@ class Notch(Gtk.Window):
         else:
             self.move(x, self.floating_y)
 
+    def minimize_player(self, *_):
+        if self.docked:
+            return
+        if not self.layer_shell:
+            # Dock windows are normally excluded from the taskbar. Give the WM
+            # a normal, restorable taskbar window before requesting minimize.
+            self.set_type_hint(Gdk.WindowTypeHint.NORMAL)
+            self.set_skip_taskbar_hint(False)
+            self.set_skip_pager_hint(False)
+            self.iconify()
+            return
+        # Layer-shell surfaces cannot be minimized by the Wayland WM. A normal
+        # taskbar window supplies the restore action while the layer is hidden.
+        if self.restore_window:
+            return
+        restore = Gtk.Window(title='Notch Music')
+        self.restore_window = restore
+        restore.set_default_size(260, 70)
+        icon = self.get_icon()
+        if icon:
+            restore.set_icon(icon)
+        button = Gtk.Button(label='Kembalikan player')
+        button.connect('clicked', self.restore_player)
+        restore.add(button)
+        restore.connect('delete-event', lambda *_: (self.restore_player(), True)[1])
+        restore.connect('window-state-event', self.restore_window_state)
+        self.hide()
+        restore.show_all()
+        GLib.idle_add(lambda: (restore.iconify(), False)[1] if self.restore_window is restore else False)
+
+    def restore_window_state(self, widget, event):
+        if (event.changed_mask & Gdk.WindowState.ICONIFIED
+                and not event.new_window_state & Gdk.WindowState.ICONIFIED):
+            self.restore_player()
+        return False
+
+    def restore_player(self, *_):
+        restore, self.restore_window = self.restore_window, None
+        if restore:
+            restore.destroy()
+        self.show()
+        self.present()
+
+    def toggle_dock_autohide(self, *_):
+        if not self.docked:
+            return
+        self.dock_autohide = not self.dock_autohide
+        self.autohide_wait_exit = self.dock_autohide
+        self.hover_left_at = None
+        self.body_revealer.set_reveal_child(not self.dock_autohide)
+        self.update_dock_handle()
+
+    def update_dock_handle(self):
+        self.dock_handle.set_visible(self.docked)
+        self.dock_handle.set_label('▴' if self.dock_autohide else '▾')
+        self.dock_handle.set_tooltip_text(
+            'Klik untuk tetap terbuka' if self.dock_autohide else 'Sembunyikan otomatis; arahkan pointer ke atas untuk membuka')
+
+    def notch_pointer_crossing(self, widget, event, inside):
+        # Child controls have their own input windows. Only a crossing of the
+        # actual top-level surface means the pointer entered/left the player.
+        if event.window == self.get_window() and event.detail != Gdk.NotifyType.INFERIOR:
+            self.pointer_inside = inside
+        return False
+
+    def poll_notch_hover(self):
+        if not self.docked or not self.dock_autohide or self.drag_origin is not None:
+            return True
+        if not self.get_mapped():
+            return True
+        inside = self.pointer_inside
+        if not self.layer_shell:
+            pointer = self.get_display().get_default_seat().get_pointer()
+            _, x, y, _ = self.get_window().get_device_position(pointer)
+            # XWayland may retain the last local coordinates after the pointer
+            # moves to a native Wayland surface. Never let those stale values
+            # override a real LeaveNotify from our top-level window.
+            inside = inside and self.get_window().get_visible_region().contains_point(x, y)
+            # Transparent shoulder space should not hold the notch open.
+            allocation = self.notch.get_allocation()
+            inside = inside and allocation.x <= x < allocation.x + allocation.width
+        if self.autohide_wait_exit:
+            if not inside:
+                self.autohide_wait_exit = False
+            return True
+        if self.browse_open or self.player_menu.get_mapped() or inside:
+            self.hover_left_at = None
+            self.body_revealer.set_reveal_child(True)
+        else:
+            self.body_revealer.set_reveal_child(False)
+        return True
+
     def start_move(self, widget, event):
         if event.button != 1:
             return False
@@ -626,6 +744,9 @@ class Notch(Gtk.Window):
         start_x, start_y, center, y = self.drag_origin
         if self.docked:
             self.docked = False
+            self.dock_autohide = False
+            self.body_revealer.set_reveal_child(True)
+            self.update_dock_handle()
             self.connection_progress = 0.0
             if self.bezel_bar:
                 self.bezel_bar.hide()
@@ -671,6 +792,9 @@ class Notch(Gtk.Window):
                 if not self.docked:
                     self.show_bezel_bar(area)
                     self.docked = True
+                    self.set_type_hint(Gdk.WindowTypeHint.DOCK)
+                    self.set_skip_taskbar_hint(True)
+                    self.update_dock_handle()
                     self.update_panel_layout()
                 self.docked = True
                 self.connection_progress = min(1.0, (elapsed - 220000) / 180000)
@@ -736,11 +860,21 @@ class Notch(Gtk.Window):
         x, y = coordinates
         allocation = self.notch.get_allocation()
         region = cairo.Region(cairo.RectangleInt(x, y, allocation.width, allocation.height))
+        if self.docked:
+            hx, hy = self.dock_handle.translate_coordinates(self, 0, 0)
+            region.union(cairo.RectangleInt(hx, hy, self.dock_handle.get_allocated_width(), self.dock_handle.get_allocated_height()))
+            region.union(cairo.RectangleInt(x, 0, allocation.width, 3))
+        region.intersect(cairo.RectangleInt(0, 0, self.get_allocated_width(), self.get_allocated_height()))
         window.input_shape_combine_region(region, 0, 0)
         if sys.platform == 'win32':
-            shape = (x, y, allocation.width, allocation.height, self.docked)
+            shape = (x, y, allocation.width, allocation.height, self.docked, self.get_allocated_height())
             if getattr(self, '_window_shape', None) != shape:
-                window.shape_combine_region(window_shape(*shape), 0, 0)
+                outline = window_shape(*shape[:5])
+                if self.docked:
+                    outline.union(cairo.RectangleInt(hx, hy, self.dock_handle.get_allocated_width(), self.dock_handle.get_allocated_height()))
+                    outline.union(cairo.RectangleInt(x, 0, allocation.width, 3))
+                outline.intersect(cairo.RectangleInt(0, 0, self.get_allocated_width(), self.get_allocated_height()))
+                window.shape_combine_region(outline, 0, 0)
                 self._window_shape = shape
 
     def draw_top_connection(self, widget, context):
@@ -953,6 +1087,7 @@ class Notch(Gtk.Window):
             self.status.set_text('Tema diterapkan, tetapi pilihan tidak dapat disimpan.')
 
     def open_files(self, *_):
+        self.browse_open = True
         dialog = Gtk.FileChooserDialog(title='Tambahkan musik', transient_for=self,
                                        action=Gtk.FileChooserAction.OPEN)
         # A custom response keeps Select enabled even with no file selected.
@@ -987,6 +1122,7 @@ class Notch(Gtk.Window):
                 self.scan_folders(folders)
         else:
             dialog.destroy()
+        self.browse_open = False
 
     def scan_folders(self, folders):
         self.status.set_text('Memindai folder…')
@@ -1518,6 +1654,9 @@ class Notch(Gtk.Window):
         return False
 
     def shutdown(self, *_):
+        GLib.source_remove(self.hover_source)
+        if self.restore_window:
+            self.restore_window.destroy()
         if self.bezel_bar:
             self.bezel_bar.destroy()
         self.player.set_state(Gst.State.NULL)

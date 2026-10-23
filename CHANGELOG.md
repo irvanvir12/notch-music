@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.1
+
+- Menambahkan Minimize sebelum Close saat player mengambang; pemutaran tetap berjalan dan player dapat dipulihkan lewat taskbar.
+- Menambahkan tombol segitiga di tengah bawah notch: ▲ mengaktifkan auto-hide, ▼ membuat player tetap terbuka.
+- Hover tepi atas membuka notch sementara; keluar dari area player langsung memicu slide menutup. Hover tidak mengubah status auto-hide.
+- Memperbaiki koordinat pointer yang tertahan pada XWayland setelah mouse pindah ke desktop atau aplikasi Wayland native.
+- Mempertahankan notch terbuka saat menu atau dialog Browse digunakan, tanpa menghilangkan queue/lirik.
+- Mengurutkan preview README: floating player menjadi screenshot pertama, diikuti queue, lirik, dan mode notch.
+- Menambahkan pengujian minimize, hover berulang, pin/unpin, perlindungan menu, dan kasus XWayland; total 47 tes otomatis.
+
 ## v0.3.0
 
 - Player mengambang seperti Dynamic Island, drag, snap ke notch dengan animasi halus, lengkungan dan garis atas mengikuti tema.
