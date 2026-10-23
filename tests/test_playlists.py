@@ -57,7 +57,8 @@ class PlaylistTests(unittest.TestCase):
                 with self.assertRaises(PermissionError):
                     save_playlist(filename, 'Changed', [])
             self.assertEqual(filename.read_bytes(), original)
-            self.assertEqual(list(root.iterdir()), [filename])
+            self.assertEqual(len(list(root.iterdir())), 1)
+            self.assertTrue(filename.is_file())
 
     def test_missing_audio_reports_original_path(self):
         with tempfile.TemporaryDirectory() as folder:

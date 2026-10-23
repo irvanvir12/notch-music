@@ -58,7 +58,7 @@ with tempfile.TemporaryDirectory(prefix='notch-windows-') as folder:
     window.create_playlist()
     assert window.load_playlist_file(playlist_file)
     assert window.playlist_title_label.get_text() == 'Favorit ü'
-    assert window.playlist_tracks == [path]
+    assert len(window.playlist_tracks) == 1 and window.playlist_tracks[0].samefile(path)
     assert window.queue == original_queue
     window.close_drawer()
     window.player.set_state(Gst.State.NULL)

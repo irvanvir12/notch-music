@@ -14,7 +14,7 @@ Pilih paket di [GitHub Releases](https://github.com/irvanvir12/notch-music/relea
 | OS | Paket | Cara menjalankan |
 | --- | --- | --- |
 | Ubuntu / Zorin / Linux x86_64 | `Notch-Music-x86_64.AppImage` | Beri izin executable lalu jalankan |
-| CachyOS / Arch x86_64 | `notch-music-0.4.0-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
+| CachyOS / Arch x86_64 | `notch-music-0.4.1-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
 | Windows 10/11 x64 (experimental) | `Notch-Music-Windows-x64.zip` | Ekstrak seluruh ZIP lalu buka `Notch-Music.exe` |
 
 Contoh untuk AppImage:
@@ -129,7 +129,7 @@ Paket native `.pkg.tar.zst` juga tersedia di [Releases](https://github.com/irvan
 
 ```bash
 sudo pacman -Syu
-sudo pacman -U ./notch-music-0.4.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./notch-music-0.4.1-1-x86_64.pkg.tar.zst
 notch-music
 ```
 
