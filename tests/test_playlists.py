@@ -22,7 +22,7 @@ class PlaylistTests(unittest.TestCase):
             self.assertEqual(name, 'Favorit saya')
             self.assertEqual(tracks, [song, missing, song])
             self.assertFalse(missing.exists())
-            self.assertEqual(json.loads(filename.read_text())['tracks'], list(map(str, tracks)))
+            self.assertEqual(json.loads(filename.read_text(encoding='utf-8'))['tracks'], list(map(str, tracks)))
 
     def test_empty_playlist_can_be_saved_and_loaded(self):
         with tempfile.TemporaryDirectory() as folder:
