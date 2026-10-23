@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">Notch Music</h1>
-<p align="center">Pemutar musik Linux berbentuk notch, selalu dekat di atas layar.</p>
+<p align="center">Pemutar musik lokal dengan Dynamic Island, notch, lirik tersinkron, dan visualizer audio.</p>
 
 Notch Music adalah aplikasi desktop dengan pemutar ringkas, lirik tersinkron, dan panel antrean yang menyatu. Dibuat dengan Python, GTK 3, dan GStreamer.
 
@@ -34,35 +34,52 @@ Logo sudah disertakan di dalam AppImage. Untuk mendaftarkannya pada menu aplikas
 
 Installer hanya bekerja pada akun pengguna: memasang ikon dalam beberapa ukuran ke `~/.local/share/icons`, menambahkan launcher ke `~/.local/share/applications`, dan mencoba mengatur ikon file melalui metadata GIO. Tidak membuka aplikasi atau mengubah asosiasi audio default. Jika AppImage dipindahkan, jalankan installer lagi dengan lokasi barunya. Ikon khusus file bergantung pada dukungan file manager; refresh folder jika ikon lama masih terlihat.
 
+## Preview
+
+Screenshot aplikasi dari desktop pengguna; klik gambar untuk melihat ukuran penuh.
+
+![Player mengambang dengan queue dan lirik tersinkron](assets/screenshots/floating-lyrics-queue.png)
+
+| Player mengambang | Queue di bawah player |
+| --- | --- |
+| ![Floating player](assets/screenshots/floating-player.png) | ![Floating queue dan pencarian](assets/screenshots/floating-queue.png) |
+
+| Menempel sebagai notch | Notch dengan queue | Notch dengan lirik |
+| --- | --- | --- |
+| ![Notch player](assets/screenshots/notch-player.png) | ![Notch queue](assets/screenshots/notch-queue.png) | ![Notch lyrics dan visualizer](assets/screenshots/notch-lyrics.png) |
+
 ## Fitur
 
-- Pemutar tanpa bingkai di tengah atas layar, dengan lengkungan yang menyatu ke sisi atas.
-- Play/pause, sebelumnya/berikutnya, seek, dan volume awal **30%**.
-- Mute menggeser slider ke nol; unmute mengembalikan posisi sebelumnya.
-- Antrean menyatu dengan pencarian, thumbnail cover, hapus per lagu, dan **Clear**. File asli tidak dihapus.
-- Shuffle dan repeat **mati → satu lagu → semua lagu**, dengan ikon merah saat aktif.
-- Cover, judul, artis, dan lirik embedded FLAC; file `.lrc`/`.txt` pendamping juga didukung.
-- Kalimat lirik aktif berwarna merah mengikuti timestamp; teks panjang turun baris dan rata tengah.
-- Tema **Dark → Light → Blur** berganti lewat satu ikon dan tersimpan otomatis.
+- **Dynamic Island atau notch:** mulai mengambang, bisa digeser; seret ke tepi atas untuk menempel dengan animasi dan lengkungan yang menyatu. Tarik turun untuk mengambang kembali.
+- **Musik lokal:** MP3, FLAC, WAV, OGG, M4A dan format lain yang didukung codec GStreamer. Cover, judul/artis, serta lirik embedded FLAC dibaca otomatis; file `.lrc`/`.txt` pendamping didukung.
+- **Info audio:** format, bit depth sumber dan sample rate, misalnya `FLAC · 24-bit · 48 kHz`. MP3 menampilkan bitrate jika tersedia.
+- **Kontrol ringkas:** Shuffle · Prev · Play/Pause · Next · Repeat. Repeat mati/satu/semua; volume awal **30%**, mute dengan pemulihan volume sebelumnya.
+- **Queue menyatu:** pencarian nama file/judul/artis, cover kecil, tombol play, hapus per lagu, serta Clear. File asli tetap tersimpan.
+- **Lirik adaptif:** satu kalimat di mode ringkas. Saat mengambang dengan queue aktif, lirik memanjang di kanan; beberapa baris mengikuti timestamp dan baris yang lewat menghilang.
+- **Visualizer audio:** batang spektrum bersegmen dan pantulan di atas/bawah lirik, mengikuti musik serta warna tema; mereda saat pause/mute.
+- **Dark, Light, Blur:** warna teks kontras mengikuti tema; Blur transparan, efek kabur bergantung compositor. Pilihan tema tersimpan otomatis.
+- **Menu ⋯:** Browse, Queue, Volume, Lirik (On/Off), Tema, dan Close. Menu tema tetap terbuka saat memilih.
 
 ## Menambahkan musik
 
-Klik **＋** untuk membuka dialog pemilih file terpisah. Saat dialog dibuka atau folder diganti, tidak ada file yang otomatis terpilih. Pilih satu lagu, **Ctrl+klik** untuk beberapa lagu, atau **Ctrl+A** untuk seluruh file yang ditampilkan, lalu **Select**.
+Klik **⋯ → Browse** untuk membuka dialog pemilih file terpisah. Saat dialog dibuka atau folder diganti, tidak ada file yang otomatis terpilih. Pilih satu lagu, **Ctrl+klik** untuk beberapa lagu, atau **Ctrl+A** untuk seluruh file yang ditampilkan, lalu **Select**.
 
 Untuk mengambil isi folder, buka folder lalu klik **Select** tanpa memilih file. Lagu dalam subfolder ikut dipindai di latar belakang. Anda juga bisa menyeret file musik ke notch.
 
-Klik ikon antrean untuk membuka/menutup panel. Pencarian langsung memfilter nama file, judul, dan artis dari metadata FLAC di seluruh antrean, dengan maksimal 100 hasil ditampilkan sekaligus. Pencarian mengabaikan kapitalisasi dan mendukung beberapa kata dalam urutan berbeda. Tekan Enter untuk memutar hasil pertama. Klik lagu untuk memutarnya atau ikon tempat sampah untuk menghapusnya dari antrean.
+Player awal hanya menampilkan kontrol musik yang ringkas. Saat mengambang, **⋯ → Queue** membuka antrean hingga lima lagu di bawah player dengan pencarian di atas. **⋯ → Lirik (Off)** membuka lirik di kanan; keduanya bisa aktif bersamaan. Lirik mengikuti tinggi player + queue dan menampilkan beberapa baris mengikuti timestamp; baris yang sudah lewat menghilang. Saat queue ditutup, lirik kembali satu kalimat setinggi player. Saat menempel menjadi notch, queue dan lirik bergantian di kanan. Klik menu masing-masing lagi untuk menutup panel. Panel melebar seimbang ke kiri dan kanan dari posisi player. Saat menempel di atas, keseluruhan notch tetap di tengah layar; garis tipis di tepi atas mengikuti tema. Menu Queue membuka/menutup panel antrean. Pencarian langsung memfilter nama file, judul, dan artis dari metadata FLAC di seluruh antrean, dengan maksimal 100 hasil ditampilkan sekaligus. Pencarian mengabaikan kapitalisasi dan mendukung beberapa kata dalam urutan berbeda. Tekan Enter untuk memutar hasil pertama. Klik lagu untuk memutarnya atau ikon tempat sampah untuk menghapusnya dari antrean.
 
 | Kontrol | Fungsi |
 | --- | --- |
 | Space | Play/pause saat tidak mengetik pada pencarian |
 | Esc | Lipat panel; jika panel sudah tertutup, keluar dari aplikasi |
-| Ikon speaker | Mute/unmute |
-| Ikon lirik | Tampilkan/sembunyikan lirik |
-| Ikon tema | Dark → Light → Blur |
-| × | Keluar |
+| ⋯ → Volume | Slider volume (awal 30%) dan speaker mute/unmute |
+| ⋯ → Lirik (On) / (Off) | Tampilkan/sembunyikan lirik |
+| ⋯ → Tema | Pilih Dark, Light, atau Blur |
+| ⋯ → Close | Keluar |
 
 ## Jalankan dari source
+
+Perintah di bawah untuk Ubuntu/Zorin. Untuk Windows, lihat bagian Windows.
 
 ```bash
 git clone git@github.com:irvanvir12/notch-music.git
@@ -79,13 +96,17 @@ sudo apt install python3 python3-gi python3-cairo python3-gi-cairo \
 
 AppImage juga dapat dipakai di CachyOS x86_64 yang diperbarui. Jika FUSE tidak tersedia, gunakan `--appimage-extract-and-run` seperti di atas.
 
+Pada KDE/Hyprland/Sway Wayland, aplikasi memakai `gtk-layer-shell`. GNOME/Zorin dan sesi X11 memakai X11/XWayland. Player mulai mengambang; seret ke tepi atas untuk menjadi notch. Seluruh GTK, codec audio, metadata, queue, lirik dan visualizer tersedia dari dependensi paket Arch.
+
 Paket native `.pkg.tar.zst` juga tersedia di [Releases](https://github.com/irvanvir12/notch-music/releases/latest):
 
 ```bash
 sudo pacman -Syu
-sudo pacman -U ./notch-music-0.2.2-1-x86_64.pkg.tar.zst
+sudo pacman -U ./notch-music-0.3.0-1-x86_64.pkg.tar.zst
 notch-music
 ```
+
+Paket hasil build lokal kode saat ini ada di `dist/`; paket di Releases dapat berisi versi kode yang lebih lama.
 
 Untuk menjalankan source dengan dependensi native:
 
@@ -115,6 +136,39 @@ NOTCH_GDK_BACKEND=wayland ./run.sh
 
 Bila compositor tidak mendukung layer-shell, fallback XWayland dipakai jika tersedia. Dukungan posisi, transparansi, dan panel tetap bergantung pada compositor. CI menguji source, build, dan instalasi paket di container Arch; ini bukan pengujian visual pada desktop CachyOS asli.
 
+## Windows 10/11 x64 — experimental
+
+Jalur Windows menggunakan backend Win32 dengan runtime Python, GTK dan GStreamer yang ikut dibundel. Paket Windows hanya dimasukkan ke release setelah build dan smoke test di runner Windows berhasil. Dukungan ini masih **experimental**: transparansi, penempatan jendela, dan snap perlu diuji langsung pada desktop Windows.
+
+### Menjalankan source di Windows
+
+Pasang [MSYS2](https://www.msys2.org/), buka terminal **UCRT64**, lalu:
+
+```bash
+pacman -Syu --needed mingw-w64-ucrt-x86_64-python \
+  mingw-w64-ucrt-x86_64-python-gobject mingw-w64-ucrt-x86_64-python-cairo \
+  mingw-w64-ucrt-x86_64-gtk3 mingw-w64-ucrt-x86_64-gstreamer \
+  mingw-w64-ucrt-x86_64-gst-plugins-base mingw-w64-ucrt-x86_64-gst-plugins-good \
+  mingw-w64-ucrt-x86_64-gst-libav mingw-w64-ucrt-x86_64-adwaita-icon-theme \
+  mingw-w64-ucrt-x86_64-adwaita-icon-theme-legacy
+```
+
+Setelah dependensi terpasang, klik dua kali **run-windows.cmd** di folder source. Skrip memakai `C:\msys64\ucrt64`; jika lokasi MSYS2 berbeda, atur variabel `MSYS2_UCRT64`. Tidak perlu menginstal Python dari python.org untuk jalur ini. Metode ini mengikuti [panduan resmi GTK untuk Windows/MSYS2](https://www.gtk.org/docs/installations/windows/).
+
+### Membuat paket portable
+
+Di terminal UCRT64, dari folder source:
+
+```bash
+pacman -S --needed mingw-w64-ucrt-x86_64-gcc
+/ucrt64/bin/python -m unittest discover -s tests -v
+/ucrt64/bin/python packaging/windows/build.py
+```
+
+Hasil setelah build dan smoke test berhasil: `dist/Notch-Music-Windows-x64.zip` beserta SHA-256. Ekstrak **seluruh ZIP** dan buka `Notch-Music.exe`; folder `runtime` dan `app` harus tetap bersamanya. Runtime Python, GTK, GStreamer, codec, dan ikon ikut dibundel. Log kesalahan disimpan di `%LOCALAPPDATA%\Notch Music\notch-music.log`.
+
+Workflow [Windows portable build](.github/workflows/windows.yml) dapat dijalankan manual dan dipanggil oleh workflow release. Workflow membangun di Windows, menguji paket dengan lingkungan MSYS2 dibersihkan dari PATH, lalu menyimpan ZIP sebagai **artifact Actions**. Workflow release menyertakannya bersama paket Linux setelah semua build lolos. Pengujian meliputi GTK, audio tanpa keluaran suara, visualizer, lirik, queue, tema, dan mute. Transparansi/blur dan perilaku snap di desktop Windows tetap perlu pemeriksaan visual langsung.
+
 ## Build dan pengujian
 
 Lihat [panduan packaging](packaging/README.md) untuk membangun AppImage. Folder `dist/`, runtime unduhan, cache, dan konfigurasi lokal diabaikan Git. Binary AppImage didistribusikan melalui aset release.
@@ -124,7 +178,7 @@ Lihat [panduan packaging](packaging/README.md) untuk membangun AppImage. Folder 
 ./dist/Notch-Music-x86_64.AppImage --appimage-extract-and-run --self-test
 ```
 
-Workflow [Release AppImage](.github/workflows/release.yml) menguji, membangun, dan memublikasikan AppImage beserta checksum saat tag `v*` dikirim.
+Workflow [Release](.github/workflows/release.yml) menguji Arch/CachyOS, AppImage dan Windows. Tag `v*` memublikasikan release setelah seluruh job berhasil, dengan checksum SHA-256 untuk setiap jenis paket.
 
 ## Catatan desktop dan lirik
 

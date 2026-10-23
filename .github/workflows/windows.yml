@@ -1,0 +1,49 @@
+name: Windows portable build
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  pull_request:
+    paths: ['*.py', 'tests/**', 'assets/**', 'packaging/windows/**', '.github/workflows/windows.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-python-gobject
+            mingw-w64-ucrt-x86_64-python-cairo
+            mingw-w64-ucrt-x86_64-gtk3
+            mingw-w64-ucrt-x86_64-gstreamer
+            mingw-w64-ucrt-x86_64-gst-plugins-base
+            mingw-w64-ucrt-x86_64-gst-plugins-good
+            mingw-w64-ucrt-x86_64-gst-libav
+            mingw-w64-ucrt-x86_64-adwaita-icon-theme
+            mingw-w64-ucrt-x86_64-adwaita-icon-theme-legacy
+            mingw-w64-ucrt-x86_64-gcc
+      - name: Unit tests
+        run: /ucrt64/bin/python -m unittest discover -s tests -v
+      - name: Build and verify relocated portable runtime
+        run: /ucrt64/bin/python packaging/windows/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Notch-Music-Windows-x64
+          path: |
+            dist/Notch-Music-Windows-x64.zip
+            dist/Notch-Music-Windows-x64.zip.sha256
+          if-no-files-found: error

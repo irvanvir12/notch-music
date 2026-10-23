@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.0
+
+- Player mengambang seperti Dynamic Island, drag, snap ke notch dengan animasi halus, lengkungan dan garis atas mengikuti tema.
+- Menu ⋯ yang padat, status Lirik (On/Off), volume awal 30%, serta pemilihan tema tanpa menutup menu.
+- Queue menyatu di bawah player saat mengambang, hingga lima lagu dan pencarian; tombol play/hapus tidak tertutup scrollbar.
+- Queue dan lirik bisa aktif bersamaan saat mengambang. Lirik mengikuti tinggi player + queue; mode notch tetap bergantian di kanan.
+- Visualizer spektrum audio bersegmen dengan pantulan, warna mengikuti tema, serta decay saat pause/mute.
+- Baris info format audio, bit depth sumber, sample rate, atau bitrate jika tersedia; titik tengah sebagai pemisah.
+- Tema Dark hitam murni; Light lebih kontras; Blur tanpa lapisan latar ganda. Ukuran font dan kontrol diperbesar.
+- Browse mempertahankan panel yang sedang terbuka; perbaikan warna teks hover queue.
+- Paket native Arch/CachyOS, AppImage, dan jalur Windows x64 experimental dengan runtime GTK/GStreamer portable serta smoke test sebelum publikasi.
+- README diperbarui dengan enam screenshot asli dan panduan platform. 41 tes otomatis.
+
 ## v0.2.2
 
 - Mencegah file pertama otomatis terpilih saat membuka dialog tambah musik atau berpindah folder.

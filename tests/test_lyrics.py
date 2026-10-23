@@ -18,7 +18,8 @@ class LyricsTests(unittest.TestCase):
         state = self.state()
         Notch.update_lyrics(state, 1.0)
         markup = state.lyrics.set_markup.call_args.args[0]
-        self.assertIn('foreground="#ff4c65" weight="bold">First &amp; &lt;line&gt;', markup)
+        self.assertIn('weight="bold">First &amp; &lt;line&gt;', markup)
+        self.assertNotIn('foreground=', markup)
         self.assertNotIn('Second', markup)
         self.assertNotIn('\n', markup)
 
@@ -27,6 +28,28 @@ class LyricsTests(unittest.TestCase):
         for seconds, current in [(3.0, 'Second'), (5.2, 'Third'), (1.5, 'First &amp; &lt;line&gt;')]:
             Notch.update_lyrics(state, seconds)
             self.assertIn(f'weight="bold">{current}</span>', state.lyrics.set_markup.call_args.args[0])
+
+    def test_expanded_lyrics_drop_elapsed_lines_and_follow_seek(self):
+        state = self.state()
+        state.lyric_context = Mock()
+        state.player_column = Mock()
+        state.player_column.get_allocated_height.return_value = 300
+        for seconds, current, absent in [(3.2, 'Second', 'First'), (1.2, 'First &amp; &lt;line&gt;', None)]:
+            state.lyric_position = seconds
+            Notch.update_lyric_context(state)
+            markup = state.lyric_context.set_markup.call_args.args[0]
+            self.assertIn(f'<b>{current}</b>', markup)
+            self.assertIn('Third', markup)
+            if absent:
+                self.assertNotIn(absent, markup)
+
+    def test_expanded_lyrics_without_timestamps_use_compact_text(self):
+        state = self.state()
+        state.lyric_lines = []
+        state.lyric_context = Mock()
+        state.lyrics.get_text.return_value = 'No timed lyrics'
+        Notch.update_lyric_context(state)
+        state.lyric_context.set_text.assert_called_once_with('No timed lyrics')
 
 
 if __name__ == '__main__':

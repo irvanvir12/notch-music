@@ -10,10 +10,10 @@ import re
 import unicodedata
 import cairo
 from pathlib import Path
-from metadata import read_metadata, parse_lyrics
+from metadata import read_metadata, parse_lyrics, read_audio_info, format_audio_info
 from selection import resolve_selection, prepare_file_selection
 from themes import THEMES, theme_css
-from desktop_support import configure_backend, get_layer_shell, anchor_window
+from desktop_support import configure_backend, get_layer_shell, anchor_window, window_shape
 
 import gi
 configure_backend()
@@ -24,21 +24,26 @@ from gi.repository import Gtk, Gdk, GLib, Gst, Pango, GdkPixbuf
 Gst.init(None)
 AUDIO = {'.mp3', '.flac', '.ogg', '.opus', '.wav', '.m4a', '.aac', '.wma'}
 CSS = b'''
-#notch-window { background-color: transparent; color: #fafafa; }
+#notch-window { font-size: 12px; background-color: transparent; color: #fafafa; }
 #bar { background: #08090b; }
-#notch { background: #101116; border: 1px solid #292b35; border-top: none; border-radius: 0 0 16px 16px; }
-#player { padding: 6px 8px 7px; }
-#drawer { padding: 9px; border-top: 1px solid #292b35; }
-#drawer-title { font-size: 13px; font-weight: bold; }
-#drawer-subtitle { color: #9297a6; font-size: 10px; }
+#notch { background: #101116; border: 1px solid #292b35; border-radius: 0 0 16px 16px; transition: border-radius 180ms ease-out; }
+#notch.floating { border-radius: 20px; border-top: 1px solid #292b35; }
+#notch.docked { border-color: transparent; border-radius: 0 0 16px 16px; box-shadow: none; transition: none; }
+#player { padding: 8px 8px 9px; }
+#drawer { padding: 8px; }
+#panel-divider { min-width: 1px; min-height: 0; border: none; background: linear-gradient(to bottom, rgba(145,151,166,0), rgba(145,151,166,0.65) 25%, rgba(145,151,166,0.65) 75%, rgba(145,151,166,0)); }
+#panel-divider.horizontal { background: linear-gradient(to right, rgba(145,151,166,0), rgba(145,151,166,0.65) 25%, rgba(145,151,166,0.65) 75%, rgba(145,151,166,0)); }
+#drawer entry { padding: 3px 7px; min-height: 16px; }
+#drawer-title { font-size: 14px; font-weight: bold; }
+#drawer-subtitle { color: #9297a6; font-size: 11px; }
 #notch entry { background: #20222c; color: #f3f4f9; border: 1px solid #373a48; border-radius: 14px; padding: 7px 10px; box-shadow: none; }
 #notch list, #notch viewport, #notch scrolledwindow { background: transparent; color: #f3f4f9; }
-#notch row { padding: 7px; border-radius: 10px; margin: 2px 0; }
+#notch row { padding: 3px; border-radius: 10px; margin: 2px 0; }
 #notch row:hover { background: #252833; }
 #notch row:selected { background: #303344; }
 #notch .current-track { background: #242936; }
-#notch .track-title { font-size: 12px; font-weight: bold; }
-#notch .track-artist { color: #9297a6; font-size: 10px; }
+#notch row .track-title, #notch row:hover .track-title, #notch row:selected .track-title, #notch row:active .track-title { color: #f3f4f9; font-size: 13px; font-weight: bold; }
+#notch row .track-artist, #notch row:hover .track-artist, #notch row:selected .track-artist, #notch row:active .track-artist { color: #9297a6; font-size: 11px; }
 #notch filechooser, #notch filechooser box, #notch treeview { background-color: #171921; color: #e9ebf0; }
 #notch filechooser button { background: #272a36; }
 #notch scrollbar slider { background: #4c5060; border-radius: 8px; min-width: 4px; }
@@ -49,12 +54,23 @@ CSS = b'''
 
 
 #cover { background: linear-gradient(135deg, #323849, #a3b3ba); border-radius: 14px; color: white; }
-#title { font-size: 11px; font-weight: bold; }
-#artist, #time { color: #91949e; font-size: 9px; }
-#hint { color: #b7bbc8; font-size: 11px; }
-#brand { color: #757b88; font-size: 10px; letter-spacing: 2px; }
+#title { font-size: 14px; font-weight: bold; }
+#artist { color: #91949e; font-size: 12px; }
+#audio-info { color: #91949e; font-size: 10px; }
+#time { color: #91949e; font-size: 10px; }
+#hint { color: #fafafa; font-size: 14px; }
+#brand { color: #757b88; font-size: 11px; letter-spacing: 2px; }
 #notch button { background: transparent; border: none; box-shadow: none; color: #e9ebf0; border-radius: 7px; padding: 1px 3px; min-width: 12px; min-height: 16px; }
 #notch button:hover { background: #252832; }
+#notch #overflow-menu { border-radius: 14px; min-width: 22px; min-height: 22px; font-size: 18px; background: #252832; }
+#player-menu, #player-submenu { background: #101116; color: #fafafa; border: 1px solid #292b35; border-radius: 10px; padding: 3px; font-size: 12px; }
+#player-menu menuitem, #player-submenu menuitem { color: #e9ebf0; padding: 2px 4px; min-width: 0; min-height: 19px; border-radius: 5px; }
+#player-menu menuitem:hover, #player-submenu menuitem:hover { background: #252832; }
+#player-submenu button { color: #e9ebf0; background: transparent; border: none; box-shadow: none; padding: 3px; }
+#player-submenu button.enabled { color: #ff4c65; }
+#player-submenu scale trough { background: #30323a; min-height: 3px; }
+#player-submenu scale highlight { background: #d8dde8; }
+#player-submenu scale slider { background: #ffffff; min-width: 9px; min-height: 9px; }
 #notch #play { background: #f2f3f5; color: #0a0b0e; border-radius: 14px; min-width: 20px; }
 #notch scale trough { background: #30323a; min-height: 3px; border: none; }
 #notch scale highlight { background: #d8dde8; min-height: 3px; }
@@ -94,6 +110,14 @@ def search_tracks(queue, query, metadata):
 class Notch(Gtk.Window):
     def __init__(self, files):
         super().__init__(title='Notch Music')
+        self.docked = False
+        self.drag_origin = None
+        self.floating_center = None
+        self.floating_y = 24
+        self.positioned = False
+        self.snap_tick = None
+        self.connection_progress = 0.0
+        self.bezel_bar = None
         self.layer_shell = get_layer_shell()
         if self.layer_shell:
             anchor_window(self, self.layer_shell)
@@ -131,13 +155,26 @@ class Notch(Gtk.Window):
         self.duration = 0
         self.updating = False
         self.repeat_mode = 0  # off, one, all
-        self.lyrics_enabled = True
+        self.lyrics_enabled = False
         self.shuffle = False
         self.shuffle_remaining = []
         self.history = []
         self.player = Gst.ElementFactory.make('playbin', 'player')
         if not self.player:
             raise RuntimeError('GStreamer playbin belum tersedia.')
+        self.visualizer_target = [0.0] * 32
+        self.visualizer_levels = [0.0] * 32
+        self.visualizer_updated = 0
+        self.visualizer_frame_time = 0
+        self.spectrum = None
+        try:
+            audio_filter = Gst.parse_bin_from_description(
+                'audioconvert ! spectrum name=lyric-spectrum bands=32 threshold=-72 '
+                'interval=40000000 post-messages=false ! audioconvert', True)
+            self.spectrum = audio_filter.get_by_name('lyric-spectrum')
+            self.player.set_property('audio-filter', audio_filter)
+        except GLib.Error:
+            pass  # Playback remains available if the optional analyzer is missing.
         self.player.set_property('volume', .3)
         bus = self.player.get_bus()
         bus.add_signal_watch()
@@ -149,118 +186,346 @@ class Notch(Gtk.Window):
         self.add(root)
         center = Gtk.Box()
         root.pack_start(center, False, False, 0)
-        center.pack_start(Gtk.Box(), True, True, 0)
-        shell = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.left_space = Gtk.Box()
+        self.left_space.set_size_request(24, -1)
+        center.pack_start(self.left_space, True, True, 0)
+        shell = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self.notch = shell
-        self.connect_after('draw', self.draw_top_connection)
         shell.set_name('notch')
-        notch = Gtk.Box(spacing=6)
+        shell.get_style_context().add_class('floating')
+        shell.set_hexpand(False)
+        self.connect_after('draw', self.draw_top_connection)
         self.connect('size-allocate', self.update_input_region)
-        notch.set_name('player')
-        notch.set_size_request(390, 94)
         center.pack_start(shell, False, False, 0)
-        shell.pack_start(notch, False, False, 0)
-        center.pack_start(Gtk.Box(), True, True, 0)
-        self.cover = Gtk.Image.new_from_icon_name('audio-x-generic', Gtk.IconSize.DIALOG)
-        self.cover.set_name('cover')
-        self.cover.set_size_request(54, 54)
-        self.cover.set_valign(Gtk.Align.CENTER)
-        self.cover.set_halign(Gtk.Align.CENTER)
-        notch.pack_start(self.cover, False, False, 0)
-        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
-        info.set_size_request(150, -1)
-        notch.pack_start(info, True, True, 0)
-        self.title = self.label('Belum ada lagu', 'title', info)
-        self.artist = self.label('Buka musik untuk mulai mendengarkan', 'artist', info)
-        self.seek = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, .1)
-        self.seek.set_draw_value(False)
-        self.seek.connect('change-value', self.seek_changed)
-        info.pack_start(self.seek, False, False, 0)
-        self.time = Gtk.Label(label='0:00 / 0:00')
-        self.time.set_name('time')
-        controls = Gtk.Box(spacing=4)
-        controls.set_halign(Gtk.Align.CENTER)
-        controls.pack_start(self.time, False, False, 0)
-        info.pack_start(controls, False, False, 0)
-        self.icon_button(controls, 'media-skip-backward-symbolic', 'Lagu sebelumnya', lambda *_: self.step(-1))
-        self.play_button = self.icon_button(controls, 'media-playback-start-symbolic', 'Play / pause (Space)', self.toggle)
-        self.play_button.set_name('play')
-        self.icon_button(controls, 'media-skip-forward-symbolic', 'Lagu berikutnya', lambda *_: self.step(1))
-        side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        side.set_size_request(142, -1)
-        notch.pack_start(side, False, False, 0)
+        right_space = Gtk.Box()
+        right_space.set_size_request(24, -1)
+        center.pack_start(right_space, True, True, 0)
+
+        player = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+        self.player_widget = player
+        player.set_name('player')
+        player.set_size_request(350, 128)
+        player.set_valign(Gtk.Align.CENTER)
+        self.player_column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        shell.pack_start(self.player_column, False, False, 0)
+        self.player_column.pack_start(player, False, False, 0)
         top = Gtk.Box(spacing=2)
         top.set_halign(Gtk.Align.END)
-        side.pack_start(top, False, False, 0)
+        top.set_no_show_all(True)
+        top.hide()
+        player.pack_start(top, False, False, 0)
         self.add_button = self.icon_button(top, 'list-add-symbolic', 'Tambahkan musik', self.open_files)
         self.queue_button = self.icon_button(top, 'view-list-symbolic', 'Antrean lagu', self.show_queue)
         self.shuffle_button = self.icon_button(top, 'media-playlist-shuffle-symbolic', 'Shuffle: mati', self.toggle_shuffle)
         self.shuffle_button.set_name('shuffle')
         self.repeat_button = self.icon_button(top, 'media-playlist-repeat-symbolic', 'Repeat: mati', self.toggle_repeat)
-        self.lyrics_button = self.icon_button(top, 'insert-text-symbolic', 'Lirik: aktif', self.toggle_lyrics)
-        self.lyrics_button.get_style_context().add_class('enabled')
+        self.lyrics_button = self.icon_button(top, 'insert-text-symbolic', 'Lirik: mati', self.toggle_lyrics)
         self.theme_button = self.icon_button(top, 'preferences-desktop-theme-symbolic', 'Pilih tema', self.cycle_theme)
         self.update_theme_icon()
         self.icon_button(top, 'window-close-symbolic', 'Tutup aplikasi', lambda *_: self.close())
-        self.lyrics = Gtk.Label(label='Lirik akan tampil di sini', xalign=0.5)
-        self.lyrics.set_name('hint')
-        self.lyrics.set_ellipsize(Pango.EllipsizeMode.NONE)
-        self.lyrics.set_line_wrap(True)
-        self.lyrics.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
-        self.lyrics.set_width_chars(21)
-        self.lyrics.set_max_width_chars(21)
-        self.lyrics.set_single_line_mode(False)
-        lyric_area = Gtk.Box(spacing=5)
-        self.lyric_area = lyric_area
-        self.lyrics.set_justify(Gtk.Justification.CENTER)
-        self.lyrics.set_yalign(0.5)
-        lyric_area.pack_start(self.lyrics, True, True, 0)
-        side.pack_start(lyric_area, True, True, 0)
 
+        song = Gtk.Box(spacing=9)
+        player.pack_start(song, True, True, 0)
+        self.cover = Gtk.Image.new_from_icon_name('audio-x-generic', Gtk.IconSize.DIALOG)
+        self.cover.set_name('cover')
+        self.cover.set_size_request(44, 44)
+        self.cover.set_valign(Gtk.Align.CENTER)
+        song.pack_start(self.cover, False, False, 0)
+        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        info.set_size_request(205, -1)
+        info.set_valign(Gtk.Align.CENTER)
+        song.pack_start(info, True, True, 0)
+        title_row = Gtk.Box(spacing=5)
+        info.pack_start(title_row, False, False, 0)
+        self.title = self.label('Belum ada lagu', 'title', title_row)
+        title_row.set_child_packing(self.title, True, True, 0, Gtk.PackType.START)
+        self.menu_button = Gtk.MenuButton(label='⋯')
+        self.menu_button.set_name('overflow-menu')
+        self.menu_button.set_direction(Gtk.ArrowType.NONE)
+        self.menu_button.set_tooltip_text('Menu player')
+        title_row.pack_end(self.menu_button, False, False, 0)
+        self.artist = self.label('Buka musik untuk mulai mendengarkan', 'artist', info)
+        self.audio_info = self.label('Format audio', 'audio-info', info)
+        self.audio_info.set_max_width_chars(32)
+        progress = Gtk.Box(spacing=6)
+        info.pack_start(progress, False, False, 0)
+        self.seek = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, .1)
+        self.seek.set_draw_value(False)
+        self.seek.set_hexpand(True)
+        self.seek.connect('change-value', self.seek_changed)
+        progress.pack_start(self.seek, True, True, 0)
+        self.time = Gtk.Label(label='0:00 / 0:00')
+        self.time.set_name('time')
+        progress.pack_end(self.time, False, False, 0)
+
+        bottom = Gtk.Box(spacing=5)
+        player.pack_start(bottom, False, False, 0)
+        controls = Gtk.Box(spacing=15)
+        self.transport_controls = controls
+        controls.set_halign(Gtk.Align.CENTER)
+        bottom.pack_start(controls, True, True, 0)
+        top.remove(self.shuffle_button)
+        controls.pack_start(self.shuffle_button, False, False, 0)
+        self.icon_button(controls, 'media-skip-backward-symbolic', 'Lagu sebelumnya', lambda *_: self.step(-1))
+        self.play_button = self.icon_button(controls, 'media-playback-start-symbolic', 'Play / pause (Space)', self.toggle)
+        self.play_button.set_name('play')
+        self.icon_button(controls, 'media-skip-forward-symbolic', 'Lagu berikutnya', lambda *_: self.step(1))
+        top.remove(self.repeat_button)
+        controls.pack_start(self.repeat_button, False, False, 0)
+        for control in controls.get_children():
+            control.get_image().set_pixel_size(16)
         volume_row = Gtk.Box(spacing=4)
-        volume_row.set_valign(Gtk.Align.END)
+        volume_row.set_size_request(100, -1)
+        volume_row.set_no_show_all(True)
+        volume_row.hide()
+        bottom.pack_end(volume_row, False, False, 0)
         self.mute_button = self.icon_button(volume_row, 'audio-volume-low-symbolic', 'Mute', self.toggle_mute)
         self.mute_button.set_name('mute')
-        volume = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 1, .01)
-        volume.set_value(.3)
-        volume.set_draw_value(False)
-        volume.set_tooltip_text('Volume')
-        self.volume = volume
-        volume.set_hexpand(True)
-        volume.connect('value-changed', self.volume_changed)
-        volume_row.pack_start(volume, True, True, 0)
-        side.pack_start(volume_row, False, False, 0)
+        self.volume = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 1, .01)
+        self.volume.set_value(.3)
+        self.volume.set_draw_value(False)
+        self.volume.set_tooltip_text('Volume')
+        self.volume.set_hexpand(True)
+        self.volume.connect('value-changed', self.volume_changed)
+        volume_row.pack_start(self.volume, True, True, 0)
+
+        self.lyrics = Gtk.Label(label='Lirik akan tampil di sini', xalign=0.5)
+        self.lyrics.set_name('hint')
+        self.lyrics.set_line_wrap(True)
+        self.lyrics.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
+        self.lyrics.set_width_chars(26)
+        self.lyrics.set_max_width_chars(26)
+        self.lyrics.set_justify(Gtk.Justification.CENTER)
+        self.lyrics.set_yalign(0.5)
+        self.lyric_area = Gtk.Box()
+        self.lyric_area.pack_start(self.lyrics, True, True, 0)
+
         self.drawer_mode = None
+        self.queue_enabled = False
+        self.queue_ui_ready = False
         self.queue_generation = 0
         self.drawer = Gtk.Revealer()
-        self.drawer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_DOWN)
+        self.drawer.set_no_show_all(True)
+        self.drawer.hide()
+        self.drawer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_RIGHT)
         self.drawer.set_transition_duration(180)
         shell.pack_start(self.drawer, False, False, 0)
-        self.drawer_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.drawer_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.drawer_body.set_name('drawer')
-        self.drawer.add(self.drawer_body)
-        heading = Gtk.Box(spacing=8)
-        self.drawer_body.pack_start(heading, False, False, 0)
+        self.drawer_body.set_size_request(280, 128)
+        panel_frame = Gtk.Box(spacing=0)
+        self.panel_frame = panel_frame
+        self.panel_divider = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        self.panel_divider.set_name('panel-divider')
+        self.panel_divider.set_size_request(1, 64)
+        self.panel_divider.set_valign(Gtk.Align.CENTER)
+        panel_frame.pack_start(self.panel_divider, False, False, 0)
+        panel_frame.pack_start(self.drawer_body, True, True, 0)
+        self.drawer.add(panel_frame)
+        self.drawer_heading = Gtk.Box(spacing=8)
+        self.drawer_body.pack_start(self.drawer_heading, False, False, 0)
         self.drawer_title = Gtk.Label(xalign=0)
         self.drawer_title.set_name('drawer-title')
-        heading.pack_start(self.drawer_title, True, True, 0)
-        self.button(heading, '⌃', 'Tutup panel', lambda *_: self.close_drawer())
-        self.drawer_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        self.drawer_body.pack_start(self.drawer_content, False, False, 0)
+        self.drawer_heading.pack_start(self.drawer_title, True, True, 0)
+        self.icon_button(self.drawer_heading, 'go-next-symbolic', 'Tutup panel', lambda *_: self.close_drawer())
+        self.drawer_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.drawer_body.pack_start(self.drawer_content, True, True, 0)
+        self.lyric_drawer = Gtk.Revealer()
+        self.lyric_drawer.set_no_show_all(True)
+        self.lyric_drawer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_RIGHT)
+        self.lyric_drawer.set_transition_duration(180)
+        shell.pack_start(self.lyric_drawer, False, False, 0)
+        lyric_frame = Gtk.Box()
+        self.lyric_divider = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        self.lyric_divider.set_name('panel-divider')
+        self.lyric_divider.set_size_request(1, 64)
+        self.lyric_divider.set_valign(Gtk.Align.CENTER)
+        lyric_frame.pack_start(self.lyric_divider, False, False, 0)
+        self.lyric_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.lyric_body.set_name('drawer')
+        self.lyric_body.set_size_request(280, 128)
+        lyric_frame.pack_start(self.lyric_body, True, True, 0)
+        self.visualizer_top = Gtk.DrawingArea()
+        self.visualizer_top.set_size_request(-1, 30)
+        self.visualizer_top.connect('draw', self.draw_visualizer, True)
+        self.lyric_body.pack_start(self.visualizer_top, False, False, 0)
+        self.lyric_stack = Gtk.Stack()
+        self.lyric_stack.set_hhomogeneous(False)
+        self.lyric_stack.set_vhomogeneous(False)
+        self.lyric_stack.add_named(self.lyric_area, 'compact')
+        self.lyric_scroll = Gtk.ScrolledWindow()
+        self.lyric_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
+        self.lyric_context = Gtk.Label(xalign=0.5, yalign=0.5)
+        self.lyric_context.set_name('hint')
+        self.lyric_context.set_line_wrap(True)
+        self.lyric_context.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
+        self.lyric_context.set_width_chars(26)
+        self.lyric_context.set_max_width_chars(26)
+        self.lyric_context.set_justify(Gtk.Justification.CENTER)
+        self.lyric_scroll.add(self.lyric_context)
+        self.lyric_stack.add_named(self.lyric_scroll, 'expanded')
+        self.lyric_body.pack_start(self.lyric_stack, True, True, 0)
+        self.visualizer_bottom = Gtk.DrawingArea()
+        self.visualizer_bottom.set_size_request(-1, 30)
+        self.visualizer_bottom.connect('draw', self.draw_visualizer, False)
+        self.lyric_body.pack_end(self.visualizer_bottom, False, False, 0)
+        self.lyric_body.add_tick_callback(self.animate_visualizer)
+        self.lyric_drawer.add(lyric_frame)
+        self.lyric_position = 0
+        self.lyrics.connect('notify::label', lambda *_: self.update_lyric_context())
+        self.lyric_drawer.connect('notify::child-revealed', self.panel_transition_finished)
         self.status = Gtk.Label(xalign=0)
         self.status.set_name('drawer-subtitle')
-        self.drawer_body.pack_start(self.status, False, False, 0)
-        self.drawer.connect('notify::child-revealed', lambda *_: self.fit_window())
+        self.status.set_no_show_all(True)
+        self.status.hide()
+        self.drawer.connect('notify::child-revealed', self.panel_transition_finished)
         self.connect('size-allocate', lambda *_: self.fit_window())
         self.connect('destroy', self.shutdown)
         self.connect('key-press-event', self.keypress)
         self.connect('realize', self.position)
         self.connect('map-event', self.position)
+        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK | Gdk.EventMask.POINTER_MOTION_MASK)
+        self.connect('button-press-event', self.start_move)
+        self.connect('motion-notify-event', self.move_player)
+        self.connect('button-release-event', self.finish_move)
         self.drag_dest_set(Gtk.DestDefaults.ALL, [], Gdk.DragAction.COPY)
         self.drag_dest_add_uri_targets()
         self.connect('drag-data-received', self.drop)
         GLib.timeout_add(100, self.tick)
+        self.build_player_menu(volume_row)
         self.add_files(files)
+
+    def build_player_menu(self, volume_row):
+        self._syncing_menu = False
+        self.player_menu = Gtk.Menu()
+        self.player_menu.set_reserve_toggle_size(False)
+        self.player_menu.set_name('player-menu')
+        self.menu_button.set_popup(self.player_menu)
+        self.menu_entries = {}
+
+        def item(label, icon, callback=None):
+            entry = Gtk.MenuItem()
+            row = Gtk.Box(spacing=5)
+            image = Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.MENU)
+            row.pack_start(image, False, False, 0)
+            text = Gtk.Label(label=label, xalign=0)
+            row.pack_start(text, True, True, 0)
+            entry.add(row)
+            if callback:
+                entry.connect('activate', callback)
+            self.player_menu.append(entry)
+            self.menu_entries[label] = entry
+            return entry, text
+
+        item('Browse', 'folder-open-symbolic', self.open_files)
+        item('Queue', 'view-list-symbolic', self.show_queue)
+        volume_item, self.menu_volume_label = item('Volume', 'audio-volume-high-symbolic')
+        volume_menu = Gtk.Menu()
+        volume_menu.set_reserve_toggle_size(False)
+        volume_menu.set_name('player-submenu')
+        volume_item.set_submenu(volume_menu)
+        slider_item = Gtk.MenuItem()
+        volume_row.get_parent().remove(volume_row)
+        volume_row.set_no_show_all(False)
+        volume_row.set_size_request(140, 26)
+        self.volume.set_size_request(110, -1)
+        volume_row.set_valign(Gtk.Align.CENTER)
+        slider_item.add(volume_row)
+        volume_menu.append(slider_item)
+        # MenuShell owns the pointer grab, so route slider gestures explicitly
+        # instead of letting a release activate and dismiss its MenuItem.
+        self._menu_volume_dragging = False
+        volume_menu.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+        for signal in ('button-press-event', 'motion-notify-event', 'button-release-event'):
+            volume_menu.connect(signal, self.menu_volume_pointer)
+        volume_menu.connect('hide', lambda *_: setattr(self, '_menu_volume_dragging', False))
+
+        _, self.menu_lyrics_label = item('Lirik', 'insert-text-symbolic', self.toggle_lyrics)
+
+        theme_item, _ = item('Tema', 'preferences-desktop-theme-symbolic')
+        theme_menu = Gtk.Menu()
+        theme_menu.set_name('player-submenu')
+        theme_item.set_submenu(theme_menu)
+        for signal in ('button-press-event', 'button-release-event', 'key-press-event'):
+            theme_menu.connect(signal, self.select_theme_without_closing)
+        self.theme_menu_items = {}
+        group = None
+        for key, theme in THEMES.items():
+            choice = Gtk.RadioMenuItem.new_with_label_from_widget(group, theme['name'])
+            group = choice
+            choice.connect('toggled', self.menu_theme_toggled, key)
+            theme_menu.append(choice)
+            self.theme_menu_items[key] = choice
+        self.player_menu.append(Gtk.SeparatorMenuItem())
+        item('Close', 'window-close-symbolic', lambda *_: self.close())
+        self.player_menu.connect('show', lambda *_: self.sync_menu_state())
+        self.player_menu.show_all()
+        self.player_menu.hide()
+        self.sync_menu_state()
+
+    def menu_volume_pointer(self, menu, event):
+        top = self.volume.get_toplevel()
+        origin = top.get_window().get_origin()[-2:]
+        offset = self.volume.translate_coordinates(top, 0, 0)
+        x = event.x_root - origin[0] - offset[0]
+        y = event.y_root - origin[1] - offset[1]
+        press = event.type == Gdk.EventType.BUTTON_PRESS
+        release = event.type == Gdk.EventType.BUTTON_RELEASE
+        if (press or release) and event.button != 1:
+            return False
+        if press and 0 <= y <= self.volume.get_allocated_height():
+            if x < 0:
+                self.toggle_mute()
+                return True
+            self._menu_volume_dragging = True
+        if self._menu_volume_dragging:
+            # Leave half a thumb at either end, matching the scale's track.
+            width = self.volume.get_allocated_width()
+            self.volume.set_value(max(0, min(1, (x - 5) / max(1, width - 10))))
+            if release:
+                self._menu_volume_dragging = False
+            return True
+        return release
+
+    def select_theme_without_closing(self, menu, event):
+        if event.type == Gdk.EventType.KEY_PRESS:
+            if event.keyval not in (Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_space):
+                return False
+            choice = menu.get_selected_item()
+        else:
+            if event.button != 1:
+                return False
+            top = menu.get_toplevel()
+            origin = top.get_window().get_origin()[-2:]
+            choice = None
+            for candidate in menu.get_children():
+                x, y = candidate.translate_coordinates(top, 0, 0)
+                if (origin[0] + x <= event.x_root < origin[0] + x + candidate.get_allocated_width()
+                        and origin[1] + y <= event.y_root < origin[1] + y + candidate.get_allocated_height()):
+                    choice = candidate
+                    break
+        if choice not in self.theme_menu_items.values():
+            return False
+        menu.select_item(choice)
+        if event.type != Gdk.EventType.BUTTON_PRESS:
+            choice.set_active(True)
+        return True
+
+    def menu_theme_toggled(self, choice, theme):
+        if not self._syncing_menu and choice.get_active():
+            self.set_theme(theme)
+
+    def sync_menu_state(self):
+        if not hasattr(self, 'menu_lyrics_label'):
+            return
+        self._syncing_menu = True
+        try:
+            state = 'On' if self.lyrics_enabled else 'Off'
+            self.menu_lyrics_label.set_markup(f'Lirik <span size="small">({state})</span>')
+            self.theme_menu_items[self.theme].set_active(True)
+            self.menu_volume_label.set_text(f'Volume · {round(self.volume.get_value() * 100)}%')
+        finally:
+            self._syncing_menu = False
 
     def label(self, text, name, parent):
         label = Gtk.Label(label=text, xalign=0)
@@ -291,14 +556,174 @@ class Notch(Gtk.Window):
         return button
 
     def position(self, *_):
+        if self.positioned:
+            return
         display = self.get_display()
         monitor = display.get_primary_monitor() or display.get_monitor(0)
         area = monitor.get_geometry()
-        self.set_size_request(area.width, -1)
+        if area.width <= 0:
+            return
+        self.positioned = True
+        self.floating_center = area.x + area.width / 2
+        self.floating_y = area.y + 24
         if self.layer_shell:
             self.layer_shell.set_monitor(self, monitor)
+            self.layer_shell.set_anchor(self, self.layer_shell.Edge.RIGHT, False)
+        self.place_floating()
+
+    def place_floating(self):
+        if self.floating_center is None:
+            return
+        # Keep the same transparent shoulder space in both modes. Resizing
+        # from a compact window to monitor width during snap caused flashes.
+        width = self.notch.get_preferred_width()[1] + 48
+        self.set_size_request(-1, -1)
+        height = self.get_preferred_height()[1]
+        if self.get_size() != (width, height):
+            self.resize(width, height)
+        x = round(self.floating_center - width / 2)
+        if self.layer_shell:
+            layer = self.layer_shell
+            monitor = layer.get_monitor(self) or self.get_display().get_monitor(0)
+            area = monitor.get_geometry()
+            layer.set_margin(self, layer.Edge.LEFT, max(0, x - area.x))
+            layer.set_margin(self, layer.Edge.TOP, max(0, self.floating_y - area.y))
         else:
-            self.move(area.x, area.y)
+            self.move(x, self.floating_y)
+
+    def start_move(self, widget, event):
+        if event.button != 1:
+            return False
+        # Buttons and sliders handle their own events before the window.
+        target = Gtk.get_event_widget(event)
+        while target and target != self:
+            if isinstance(target, (Gtk.Button, Gtk.Range, Gtk.Entry)):
+                return False
+            target = target.get_parent()
+        if self.snap_tick is not None:
+            self.remove_tick_callback(self.snap_tick)
+            self.snap_tick = None
+        allocation = self.notch.get_allocation()
+        position = self.get_position()
+        window_x, window_y = position
+        if self.layer_shell:
+            layer = self.layer_shell
+            monitor = layer.get_monitor(self) or self.get_display().get_monitor(0)
+            area = monitor.get_geometry()
+            window_x = area.x + layer.get_margin(self, layer.Edge.LEFT)
+            window_y = area.y + layer.get_margin(self, layer.Edge.TOP)
+        self.drag_origin = (event.x_root, event.y_root,
+                            window_x + allocation.x + allocation.width / 2,
+                            window_y)
+        self.grab_add()
+        self.get_display().get_default_seat().grab(
+            self.get_window(), Gdk.SeatCapabilities.POINTER, False, None, event, None, None)
+        return True
+
+    def move_player(self, widget, event):
+        if self.drag_origin is None:
+            return False
+        start_x, start_y, center, y = self.drag_origin
+        if self.docked:
+            self.docked = False
+            self.connection_progress = 0.0
+            if self.bezel_bar:
+                self.bezel_bar.hide()
+            self.notch.get_style_context().remove_class('docked')
+            self.notch.get_style_context().add_class('floating')
+            self.update_panel_layout()
+            if self.layer_shell:
+                self.layer_shell.set_anchor(self, self.layer_shell.Edge.RIGHT, False)
+        self.floating_center = center + event.x_root - start_x
+        self.floating_y = round(y + event.y_root - start_y)
+        self.place_floating()
+        self.queue_draw()
+        return True
+
+    def finish_move(self, widget, event):
+        if self.drag_origin is None or event.button != 1:
+            return False
+        self.drag_origin = None
+        self.get_display().get_default_seat().ungrab()
+        self.grab_remove()
+        monitor = self.get_display().get_monitor_at_point(int(event.x_root), int(event.y_root))
+        area = monitor.get_geometry()
+        if self.floating_y <= area.y + 12:
+            if self.layer_shell:
+                self.layer_shell.set_monitor(self, monitor)
+            self.animate_snap(area)
+        self.queue_draw()
+        return True
+
+    def animate_snap(self, area):
+        start_center, start_y = self.floating_center, self.floating_y
+        target_center = area.x + area.width / 2
+        started = GLib.get_monotonic_time()
+
+        def frame(widget, clock):
+            elapsed = max(0, clock.get_frame_time() - started)
+            progress = min(1.0, elapsed / 220000)
+            eased = 1 - (1 - progress) ** 3
+            self.floating_center = start_center + (target_center - start_center) * eased
+            self.floating_y = round(start_y + (area.y - start_y) * eased)
+            self.place_floating()
+            if progress >= 1:
+                if not self.docked:
+                    self.show_bezel_bar(area)
+                    self.docked = True
+                    self.update_panel_layout()
+                self.docked = True
+                self.connection_progress = min(1.0, (elapsed - 220000) / 180000)
+                self.bezel_bar.set_opacity(self.connection_progress)
+                self.notch.get_style_context().remove_class('floating')
+                self.notch.get_style_context().add_class('docked')
+            finished = elapsed >= 400000
+            if finished:
+                self.snap_tick = None
+            self.queue_draw()
+            return not finished
+
+        self.snap_tick = self.add_tick_callback(frame)
+
+    def show_bezel_bar(self, area):
+        if self.bezel_bar is None:
+            bar = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+            self.bezel_bar = bar
+            bar.set_decorated(False)
+            bar.set_resizable(False)
+            bar.set_accept_focus(False)
+            bar.set_skip_taskbar_hint(True)
+            bar.set_skip_pager_hint(True)
+            bar.set_keep_above(True)
+            bar.set_type_hint(Gdk.WindowTypeHint.DOCK)
+            bar.set_app_paintable(True)
+            visual = self.get_screen().get_rgba_visual()
+            if visual:
+                bar.set_visual(visual)
+
+            def paint(widget, context):
+                context.set_operator(cairo.OPERATOR_SOURCE)
+                context.set_source_rgba(*THEMES[self.theme]['surface'])
+                context.paint()
+                return True
+
+            bar.connect('draw', paint)
+            # Decorative only: clicks still reach the desktop's top panel.
+            bar.connect('map', lambda widget: widget.get_window().input_shape_combine_region(cairo.Region(), 0, 0))
+            if self.layer_shell:
+                layer = self.layer_shell
+                anchor_window(bar, layer)
+                layer.set_keyboard_mode(bar, layer.KeyboardMode.NONE)
+        bar = self.bezel_bar
+        bar.set_size_request(area.width, 2)
+        bar.resize(area.width, 2)
+        bar.set_opacity(0)
+        if self.layer_shell:
+            monitor = self.get_display().get_monitor_at_point(area.x, area.y)
+            self.layer_shell.set_monitor(bar, monitor)
+        else:
+            bar.move(area.x, area.y)
+        bar.show()
 
     def update_input_region(self, *_):
         window = self.get_window()
@@ -312,33 +737,47 @@ class Notch(Gtk.Window):
         allocation = self.notch.get_allocation()
         region = cairo.Region(cairo.RectangleInt(x, y, allocation.width, allocation.height))
         window.input_shape_combine_region(region, 0, 0)
+        if sys.platform == 'win32':
+            shape = (x, y, allocation.width, allocation.height, self.docked)
+            if getattr(self, '_window_shape', None) != shape:
+                window.shape_combine_region(window_shape(*shape), 0, 0)
+                self._window_shape = shape
 
     def draw_top_connection(self, widget, context):
+        if sys.platform == 'win32':
+            self.update_input_region()
+        if not self.docked:
+            return False
         coordinates = self.notch.translate_coordinates(self, 0, 0)
         if coordinates is None:
             return False
         x, y = coordinates
         right = x + self.notch.get_allocated_width()
-        radius = 15
+        radius = max(0.01, 24 * self.connection_progress)
+        bar_height = 2
+        shoulder_y = y + bar_height
         context.save()
+        context.set_antialias(cairo.ANTIALIAS_BEST)
+        # Replace rather than blend overlapping edges, keeping the translucent
+        # theme uniform where the shoulders meet the bar and the shell border.
+        context.set_operator(cairo.OPERATOR_SOURCE)
         context.set_source_rgba(*THEMES[self.theme]['surface'])
-        # A thin visual bridge along the screen edge; input remains confined
-        # to the player so the desktop panel outside it stays clickable.
-        context.rectangle(0, 0, self.get_allocated_width(), 2)
+        context.rectangle(0, 0, self.get_allocated_width(), bar_height)
         context.fill()
-        # Inverse quarter circles blend the top bar into both notch sides.
-        context.move_to(x - radius, y)
-        context.line_to(x + 1, y)
-        context.line_to(x + 1, y + radius)
-        context.line_to(x, y + radius)
-        context.arc_negative(x - radius, y + radius, radius, 0, -math.pi / 2)
+        # Each arc meets the underside of the bar horizontally and the notch
+        # side vertically, avoiding the old step at the two-pixel bar edge.
+        context.move_to(x - radius, shoulder_y)
+        context.line_to(x + 1, shoulder_y)
+        context.line_to(x + 1, shoulder_y + radius)
+        context.line_to(x, shoulder_y + radius)
+        context.arc_negative(x - radius, shoulder_y + radius, radius, 0, -math.pi / 2)
         context.close_path()
         context.fill()
-        context.move_to(right + radius, y)
-        context.line_to(right - 1, y)
-        context.line_to(right - 1, y + radius)
-        context.line_to(right, y + radius)
-        context.arc(right + radius, y + radius, radius, math.pi, 3 * math.pi / 2)
+        context.move_to(right + radius, shoulder_y)
+        context.line_to(right - 1, shoulder_y)
+        context.line_to(right - 1, shoulder_y + radius)
+        context.line_to(right, shoulder_y + radius)
+        context.arc(right + radius, shoulder_y + radius, radius, math.pi, 3 * math.pi / 2)
         context.close_path()
         context.fill()
         context.restore()
@@ -346,26 +785,137 @@ class Notch(Gtk.Window):
 
     def fit_window(self):
         if self.get_realized():
+            self.place_floating()
             minimum, natural = self.get_preferred_height()
             if self.get_size().height != natural:
                 self.resize(self.get_size().width, natural)
 
+    def panel_transition_finished(self, revealer, *_):
+        if not revealer.get_reveal_child():
+            revealer.hide()
+        self.fit_window()
+
     def open_drawer(self, mode, title):
-        self.drawer_mode = mode
+        if mode == 'queue':
+            self.queue_enabled = True
+            if self.docked:
+                self.lyrics_enabled = False
+            for child in self.drawer_content.get_children():
+                child.destroy()
+        else:
+            self.lyrics_enabled = True
+            if self.docked:
+                self.queue_enabled = False
         self.drawer_title.set_text(title)
-        for child in self.drawer_content.get_children():
-            child.destroy()
-        for button, name in [(self.add_button, 'add'), (self.queue_button, 'queue')]:
-            context = button.get_style_context()
-            context.add_class('active') if mode == name else context.remove_class('active')
-        self.drawer.set_reveal_child(True)
+        self.update_panel_layout()
 
     def close_drawer(self):
-        self.drawer_mode = None
-        self.drawer.set_reveal_child(False)
-        self.add_button.get_style_context().remove_class('active')
-        self.queue_button.get_style_context().remove_class('active')
-        self.theme_button.get_style_context().remove_class('active')
+        self.queue_enabled = False
+        self.lyrics_enabled = False
+        self.update_panel_layout()
+
+    def update_panel_layout(self):
+        # In notch mode retain one side panel; floating mode allows both.
+        if self.docked and self.queue_enabled and self.lyrics_enabled:
+            if self.drawer_mode == 'lyrics':
+                self.queue_enabled = False
+            else:
+                self.lyrics_enabled = False
+        self.drawer_mode = 'queue' if self.queue_enabled else ('lyrics' if self.lyrics_enabled else None)
+        below = not self.docked
+        self.notch.set_orientation(Gtk.Orientation.HORIZONTAL)
+        parent = self.player_column if below else self.notch
+        if self.drawer.get_parent() is not parent:
+            self.drawer.get_parent().remove(self.drawer)
+            parent.pack_start(self.drawer, False, False, 0)
+            if parent is self.notch:
+                parent.reorder_child(self.drawer, 1)
+        self.panel_frame.set_orientation(Gtk.Orientation.VERTICAL if below else Gtk.Orientation.HORIZONTAL)
+        self.drawer.set_transition_type(
+            Gtk.RevealerTransitionType.SLIDE_DOWN if below else Gtk.RevealerTransitionType.SLIDE_RIGHT)
+        self.player_widget.set_size_request(300 if self.lyrics_enabled or (self.docked and self.queue_enabled) else 350, 128)
+        self.drawer_body.set_size_request(-1 if below else 245, 112)
+        self.panel_divider.set_orientation(Gtk.Orientation.HORIZONTAL if below else Gtk.Orientation.VERTICAL)
+        self.panel_divider.set_size_request(260 if below else 1, 1 if below else 64)
+        self.panel_divider.set_halign(Gtk.Align.CENTER if below else Gtk.Align.FILL)
+        self.panel_divider.set_valign(Gtk.Align.FILL if below else Gtk.Align.CENTER)
+        context = self.panel_divider.get_style_context()
+        context.add_class('horizontal') if below else context.remove_class('horizontal')
+        for revealer, enabled in ((self.drawer, self.queue_enabled), (self.lyric_drawer, self.lyrics_enabled)):
+            if enabled:
+                revealer.get_child().show_all()
+                revealer.show()
+            revealer.set_reveal_child(enabled)
+            if not enabled and not revealer.get_child_revealed():
+                revealer.hide()
+        self.lyric_stack.set_visible_child_name('expanded' if below and self.queue_enabled and self.lyrics_enabled else 'compact')
+        self.drawer_heading.hide()
+        for button, enabled in ((self.queue_button, self.queue_enabled), (self.lyrics_button, self.lyrics_enabled)):
+            context = button.get_style_context()
+            context.add_class('enabled') if enabled else context.remove_class('enabled')
+        self.lyrics_button.set_tooltip_text('Lirik: ' + ('aktif' if self.lyrics_enabled else 'mati'))
+        if self.queue_ui_ready:
+            self.update_queue_height()
+        visualizer_height = 44 if below and self.queue_enabled and self.lyrics_enabled else 30
+        self.visualizer_top.set_size_request(-1, visualizer_height)
+        self.visualizer_bottom.set_size_request(-1, visualizer_height)
+        if self.spectrum:
+            self.spectrum.set_property('post-messages', self.lyrics_enabled)
+        if self.lyrics_enabled:
+            ok, position = self.player.query_position(Gst.Format.TIME)
+            self.update_lyrics(position / Gst.SECOND if ok else 0)
+        self.sync_menu_state()
+
+    def animate_visualizer(self, widget, clock):
+        now = clock.get_frame_time()
+        if now - self.visualizer_frame_time < 30000:
+            return True
+        self.visualizer_frame_time = now
+        audible = self.playing and not self.muted and self.volume.get_value() > 0
+        fresh = GLib.get_monotonic_time() - self.visualizer_updated < 300000
+        for index, current in enumerate(self.visualizer_levels):
+            target = self.visualizer_target[index] if audible and fresh else 0
+            smoothing = .55 if target > current else .18
+            self.visualizer_levels[index] += (target - current) * smoothing
+        self.visualizer_top.queue_draw()
+        self.visualizer_bottom.queue_draw()
+        return True
+
+    def draw_visualizer(self, widget, context, top):
+        width, height = widget.get_allocated_width(), widget.get_allocated_height()
+        color = self.title.get_style_context().get_color(Gtk.StateFlags.NORMAL)
+        step = width / len(self.visualizer_levels)
+        bar_width = max(1, step * .72)
+        baseline = height * .72
+        segment, gap = 2, 1
+        for index, level in enumerate(self.visualizer_levels):
+            edge = .55 + .45 * math.sin(math.pi * (index + .5) / len(self.visualizer_levels))
+            strength = max(0, min(1, level)) ** .65
+            count = max(1, round(strength * edge * (baseline - 2) / (segment + gap)))
+            x = index * step + (step - bar_width) / 2
+            for cell in range(count):
+                y = baseline - (cell + 1) * (segment + gap)
+                opacity = .30 + .60 * strength
+                context.set_source_rgba(color.red, color.green, color.blue, opacity)
+                context.rectangle(x, y, bar_width, segment)
+                context.fill()
+                # A shorter, fading reflection below the spectrum's baseline.
+                reflected_y = baseline + cell * (segment + gap) * .38
+                fade = max(0, 1 - (reflected_y - baseline) / max(1, height - baseline))
+                context.set_source_rgba(color.red, color.green, color.blue, opacity * .32 * fade)
+                context.rectangle(x, reflected_y, bar_width, max(1, segment * .38))
+                context.fill()
+        return False
+
+    def update_queue_height(self):
+        if not self.docked:
+            rows = self.listing.get_children()[:5]
+            height = max(1, sum(row.get_preferred_height()[1] for row in rows))
+        else:
+            height = 60
+        self.queue_scroll.set_min_content_height(0)
+        self.queue_scroll.set_max_content_height(height)
+        self.queue_scroll.set_min_content_height(height)
 
     def cycle_theme(self, *_):
         order = ['dark', 'light', 'blur']
@@ -387,10 +937,13 @@ class Notch(Gtk.Window):
         self.theme = theme
         self.css_provider.load_from_data(theme_css(CSS, theme))
         self.queue_draw()
+        if getattr(self, 'bezel_bar', None):
+            self.bezel_bar.queue_draw()
         ok, position = self.player.query_position(Gst.Format.TIME)
         if self.lyric_lines or self.plain_lyrics:
             self.update_lyrics(position / Gst.SECOND if ok else 0)
         self.update_theme_icon()
+        self.sync_menu_state()
         try:
             self.settings_path.parent.mkdir(parents=True, exist_ok=True)
             temporary = self.settings_path.with_suffix('.tmp')
@@ -400,7 +953,6 @@ class Notch(Gtk.Window):
             self.status.set_text('Tema diterapkan, tetapi pilihan tidak dapat disimpan.')
 
     def open_files(self, *_):
-        self.close_drawer()
         dialog = Gtk.FileChooserDialog(title='Tambahkan musik', transient_for=self,
                                        action=Gtk.FileChooserAction.OPEN)
         # A custom response keeps Select enabled even with no file selected.
@@ -479,11 +1031,13 @@ class Notch(Gtk.Window):
         path = self.queue[index]
         self.title.set_text(path.stem)
         self.artist.set_text(path.parent.name)
+        self.audio_info.set_text(path.suffix.lstrip('.').upper())
         self.cover.set_from_icon_name('audio-x-generic', Gtk.IconSize.DIALOG)
         self.lyric_lines, self.plain_lyrics = [], []
         self.lyrics.set_text('Membaca lirik…')
         def read():
             metadata = read_metadata(path)
+            metadata['audio_info'] = read_audio_info(path)
             GLib.idle_add(self.apply_metadata, path, metadata)
         threading.Thread(target=read, daemon=True).start()
         self.player.set_property('uri', path.as_uri())
@@ -496,6 +1050,10 @@ class Notch(Gtk.Window):
     def apply_metadata(self, path, metadata):
         if self.index < 0 or self.queue[self.index] != path:
             return False
+        if metadata.get('audio_info'):
+            details = format_audio_info(metadata['audio_info'])
+            self.audio_info.set_text(details)
+            self.audio_info.set_tooltip_text(details)
         for key, label in [('title', self.title), ('artist', self.artist)]:
             if metadata[key]:
                 label.set_text(metadata[key])
@@ -506,7 +1064,7 @@ class Notch(Gtk.Window):
         if metadata['picture']:
             try:
                 loader = GdkPixbuf.PixbufLoader()
-                loader.set_size(54, 54)
+                loader.set_size(44, 44)
                 loader.write(metadata['picture'])
                 loader.close()
                 self.cover.set_from_pixbuf(loader.get_pixbuf())
@@ -517,6 +1075,7 @@ class Notch(Gtk.Window):
     def update_lyrics(self, seconds):
         if not self.lyrics_enabled:
             return
+        self.lyric_position = seconds
         if self.lyric_lines:
             import bisect
             index = bisect.bisect_right([t for t, _ in self.lyric_lines], seconds) - 1
@@ -525,13 +1084,27 @@ class Notch(Gtk.Window):
             text = self.lyric_lines[max(0, index)][1]
             escaped = GLib.markup_escape_text(text.replace('\n', ' '))
             if index >= 0:
-                accent = '#cf2646' if self.theme == 'light' else '#ff4c65'
-                self.lyrics.set_markup(f'<span foreground="{accent}" weight="bold">{escaped}</span>')
+                self.lyrics.set_markup(f'<span weight="bold">{escaped}</span>')
             else:
-                dim = THEMES[self.theme]['lyric_dim']
-                self.lyrics.set_markup(f'<span foreground="{dim}">{escaped}</span>')
+                self.lyrics.set_markup(escaped)
         else:
             self.lyrics.set_text(next(iter(self.plain_lyrics), 'Lirik tidak tersedia'))
+
+    def update_lyric_context(self):
+        if not self.lyric_lines:
+            self.lyric_context.set_text(self.lyrics.get_text())
+            return
+        import bisect
+        index = bisect.bisect_right([t for t, _ in self.lyric_lines], self.lyric_position) - 1
+        start = max(0, index)
+        # Drop elapsed sentences and advance the upcoming lines at real LRC
+        # timestamps; the compact view still shows just the active sentence.
+        count = max(2, min(6, (self.player_column.get_allocated_height() - 100) // 48))
+        lines = []
+        for line_index in range(start, min(len(self.lyric_lines), start + count)):
+            text = GLib.markup_escape_text(self.lyric_lines[line_index][1].replace('\n', ' '))
+            lines.append(f'<b>{text}</b>' if line_index == index else text)
+        self.lyric_context.set_markup('\n\n'.join(lines))
 
     def toggle(self, *_):
         if not self.queue:
@@ -608,6 +1181,7 @@ class Notch(Gtk.Window):
         self.mute_button.set_tooltip_text('Unmute' if self.muted else 'Mute')
         context = self.mute_button.get_style_context()
         context.add_class('enabled') if self.muted else context.remove_class('enabled')
+        self.sync_menu_state()
 
     def toggle_repeat(self, *_):
         self.repeat_mode = (self.repeat_mode + 1) % 3
@@ -618,16 +1192,16 @@ class Notch(Gtk.Window):
         self.repeat_button.set_tooltip_text('Repeat: ' + ['mati', 'satu lagu', 'semua lagu'][self.repeat_mode])
 
     def toggle_lyrics(self, *_):
-        self.lyrics_enabled = not self.lyrics_enabled
-        # Keep the compact layout stable while hiding the lyric text.
-        self.lyric_area.set_opacity(1 if self.lyrics_enabled else 0)
-        self.lyric_area.set_sensitive(self.lyrics_enabled)
-        context = self.lyrics_button.get_style_context()
-        context.add_class('enabled') if self.lyrics_enabled else context.remove_class('enabled')
-        self.lyrics_button.set_tooltip_text('Lirik: ' + ('aktif' if self.lyrics_enabled else 'mati'))
         if self.lyrics_enabled:
-            ok, position = self.player.query_position(Gst.Format.TIME)
+            self.lyrics_enabled = False
+            self.update_panel_layout()
+            return
+        self.open_drawer('lyrics', 'Lirik')
+        ok, position = self.player.query_position(Gst.Format.TIME)
+        if self.lyric_lines or self.plain_lyrics:
             self.update_lyrics(position / Gst.SECOND if ok else 0)
+        else:
+            self.lyrics.set_text('Lirik tidak tersedia' if self.queue else 'Lirik akan tampil di sini')
 
     def reset_player(self):
         self.player.set_state(Gst.State.NULL)
@@ -637,6 +1211,8 @@ class Notch(Gtk.Window):
         self.lyric_lines, self.plain_lyrics = [], []
         self.title.set_text('Belum ada lagu')
         self.artist.set_text('Buka musik untuk mulai mendengarkan')
+        self.audio_info.set_text('Format audio')
+        self.audio_info.set_tooltip_text(None)
         self.cover.set_from_icon_name('audio-x-generic', Gtk.IconSize.DIALOG)
         self.lyrics.set_text('Lirik akan tampil di sini')
         self.lyrics.set_tooltip_text(None)
@@ -720,7 +1296,18 @@ class Notch(Gtk.Window):
         return True
 
     def message(self, bus, message):
-        if message.type == Gst.MessageType.EOS:
+        if message.type == Gst.MessageType.ELEMENT:
+            structure = message.get_structure()
+            if structure and structure.get_name() == 'spectrum' and message.src == self.spectrum:
+                # GstValueList lacks a Python converter on some distro builds.
+                # The typed serialization is portable across GI installations.
+                values = re.search(r'magnitude=\(float\)\{([^}]+)\}', structure.to_string())
+                if values:
+                    levels = [max(0, min(1, (float(value) + 72) / 72)) for value in values[1].split(',')]
+                    if len(levels) == 32:
+                        self.visualizer_target = levels
+                        self.visualizer_updated = GLib.get_monotonic_time()
+        elif message.type == Gst.MessageType.EOS:
             self.end_of_track()
         elif message.type == Gst.MessageType.ERROR:
             error, debug = message.parse_error()
@@ -781,8 +1368,9 @@ class Notch(Gtk.Window):
             self.load(matches[0][0])
 
     def show_queue(self, *_, force=False):
-        if self.drawer_mode == 'queue' and not force:
-            self.close_drawer()
+        if self.queue_enabled and not force:
+            self.queue_enabled = False
+            self.update_panel_layout()
             return
         self.queue_ui_ready = False
         self.open_drawer('queue', 'Antrean musik')
@@ -790,17 +1378,22 @@ class Notch(Gtk.Window):
         self.button(actions, 'Clear', 'Kosongkan antrean (file musik tetap tersimpan)', self.clear_queue)
         self.drawer_content.pack_start(actions, False, False, 0)
         self.search = Gtk.SearchEntry()
+        self.search.set_width_chars(14)
+        self.search.set_max_width_chars(14)
         self.search.set_placeholder_text('Cari lagu atau artis…')
         self.search.connect('changed', self.on_search_changed)
         self.search.connect('activate', self.activate_search_result)
         self.search.connect('button-press-event', self.focus_search)
-        self.drawer_content.pack_start(self.search, False, False, 0)
+        actions.pack_start(self.search, True, True, 0)
+        actions.reorder_child(self.search, 0)
         scroll = Gtk.ScrolledWindow()
         self.queue_scroll = scroll
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scroll.set_min_content_height(190)
-        scroll.set_max_content_height(190)
+        scroll.set_overlay_scrolling(False)
+        scroll.set_min_content_height(60)
+        scroll.set_max_content_height(60)
         self.listing = Gtk.ListBox()
+        self.listing.set_margin_end(4)
         self.listing.set_selection_mode(Gtk.SelectionMode.NONE)
         self.listing.set_activate_on_single_click(True)
         self.listing.connect('row-activated', lambda box, row: self.load(row.track_index) if hasattr(row, 'track_index') else None)
@@ -809,6 +1402,7 @@ class Notch(Gtk.Window):
         self.queue_ui_ready = True
         self.refresh_queue()
         self.drawer_content.show_all()
+        self.update_panel_layout()
         GLib.idle_add(self.focus_search)
 
     def mark_current_track(self):
@@ -818,10 +1412,10 @@ class Notch(Gtk.Window):
             context = row.get_style_context()
             if row.track_index == self.index:
                 context.add_class('current-track')
-                row.play_icon.set_text('♫')
+                row.play_button.get_style_context().add_class('enabled')
             else:
                 context.remove_class('current-track')
-                row.play_icon.set_text('▶')
+                row.play_button.get_style_context().remove_class('enabled')
 
     def refresh_queue(self):
         self.queue_generation += 1
@@ -834,12 +1428,12 @@ class Notch(Gtk.Window):
         for index, path in matches[:100]:
             row = Gtk.ListBoxRow()
             row.track_index = index
-            box = Gtk.Box(spacing=10)
+            box = Gtk.Box(spacing=6)
             row.add(box)
             image = Gtk.Image.new_from_icon_name('audio-x-generic', Gtk.IconSize.LARGE_TOOLBAR)
-            image.set_size_request(34, 34)
+            image.set_size_request(24, 24)
             box.pack_start(image, False, False, 0)
-            text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
             box.pack_start(text, True, True, 0)
             title, artist = track_details(path, self.queue_metadata.get(path, {}))
             name = Gtk.Label(label=title, xalign=0)
@@ -852,10 +1446,11 @@ class Notch(Gtk.Window):
             subtitle.set_max_width_chars(40)
             subtitle.get_style_context().add_class('track-artist')
             text.pack_start(subtitle, False, False, 0)
-            row.play_icon = Gtk.Label(label='▶')
             self.icon_button(box, 'edit-delete-symbolic', 'Hapus dari antrean',
                              lambda button, track=index: self.remove_track(track))
-            box.pack_end(row.play_icon, False, False, 8)
+            row.play_button = self.icon_button(
+                box, 'media-playback-start-symbolic', 'Putar lagu ini',
+                lambda button, track=index: self.load(track))
             self.listing.add(row)
             rows.append((path, image))
         if not matches:
@@ -866,6 +1461,7 @@ class Notch(Gtk.Window):
         self.status.set_text(f'{len(matches)} lagu' + (' · menampilkan 100 pertama, gunakan pencarian' if len(matches) > 100 else ''))
         self.mark_current_track()
         self.listing.show_all()
+        self.update_queue_height()
         def artwork():
             for path, image in rows:
                 if generation != self.queue_generation:
@@ -880,7 +1476,7 @@ class Notch(Gtk.Window):
             return False
         try:
             loader = GdkPixbuf.PixbufLoader()
-            loader.set_size(34, 34)
+            loader.set_size(24, 24)
             loader.write(data)
             loader.close()
             image.set_from_pixbuf(loader.get_pixbuf())
@@ -901,6 +1497,13 @@ class Notch(Gtk.Window):
         Gtk.drag_finish(context, bool(paths), False, timestamp)
 
     def keypress(self, widget, event):
+        if event.state & Gdk.ModifierType.CONTROL_MASK:
+            action = {Gdk.KEY_o: self.open_files, Gdk.KEY_O: self.open_files,
+                      Gdk.KEY_l: self.toggle_lyrics, Gdk.KEY_L: self.toggle_lyrics,
+                      Gdk.KEY_k: self.show_queue, Gdk.KEY_K: self.show_queue}.get(event.keyval)
+            if action:
+                action()
+                return True
         if isinstance(self.get_focus(), (Gtk.Entry, Gtk.TextView)):
             return False
         if event.keyval == Gdk.KEY_space:
@@ -915,13 +1518,16 @@ class Notch(Gtk.Window):
         return False
 
     def shutdown(self, *_):
+        if self.bezel_bar:
+            self.bezel_bar.destroy()
         self.player.set_state(Gst.State.NULL)
-        Gtk.main_quit()
+        if Gtk.main_level():
+            Gtk.main_quit()
 
 
 if __name__ == '__main__':
     if not Gtk.init_check()[0]:
-        sys.exit('Tidak dapat terhubung ke desktop. Jalankan dari sesi Linux Anda; untuk fallback X11/Wayland, pasang XWayland atau gtk-layer-shell.')
+        sys.exit('Tidak dapat membuka desktop. Jalankan dari sesi desktop Windows atau Linux yang aktif.')
     display = Gdk.Display.get_default()
     if ('Wayland' in type(display).__name__ and not get_layer_shell()
             and os.environ.get('DISPLAY') and not os.environ.get('NOTCH_GDK_BACKEND')

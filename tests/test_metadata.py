@@ -2,10 +2,30 @@ import struct
 import tempfile
 import unittest
 from pathlib import Path
-from metadata import read_metadata, parse_lyrics
+from metadata import read_metadata, parse_lyrics, read_audio_info, format_audio_info
 
 
 class MetadataTests(unittest.TestCase):
+    def test_flac_source_precision(self):
+        packed = (48000 << 44) | (1 << 41) | (23 << 36) | 48000
+        block = bytes(10) + packed.to_bytes(8, 'big') + bytes(16)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'audio.flac'
+            path.write_bytes(b'fLaC\x80\x00\x00\x22' + block)
+            self.assertEqual(format_audio_info(read_audio_info(path)), 'FLAC · 24-bit · 48 kHz')
+
+    def test_wav_source_precision(self):
+        fmt = struct.pack('<HHIIHH', 1, 2, 44100, 264600, 6, 24)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'audio.wav'
+            path.write_bytes(b'RIFF' + struct.pack('<I', 36) + b'WAVEfmt ' + struct.pack('<I', 16) + fmt)
+            self.assertEqual(format_audio_info(read_audio_info(path)), 'WAV · 24-bit · 44.1 kHz')
+
+    def test_lossy_format_shows_bitrate_without_inventing_bit_depth(self):
+        self.assertEqual(format_audio_info({'format': 'MP3', 'bitrate': 320000, 'rate': 48000}),
+                         'MP3 · 320 kbps · 48 kHz')
+        self.assertEqual(format_audio_info({'format': 'MP3'}), 'MP3')
+
     def test_flac_comments_and_cover(self):
         comments = [b'TITLE=Example', b'ARTIST=Someone', b'LYRICS=[00:01.00]Hello\n[00:02.00]World']
         block = struct.pack('<I', 4) + b'test' + struct.pack('<I', len(comments))

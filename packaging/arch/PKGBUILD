@@ -1,7 +1,7 @@
 pkgname=notch-music
-pkgver=0.2.2
+pkgver=0.3.0
 pkgrel=1
-pkgdesc='Compact Linux desktop music player with synchronized lyrics'
+pkgdesc='Floating island and notch music player with synchronized lyrics and audio visualizer'
 arch=('x86_64')
 url='https://github.com/irvanvir12/notch-music'
 depends=('python' 'python-gobject' 'python-cairo' 'gtk3' 'gtk-layer-shell'

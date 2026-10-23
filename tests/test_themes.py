@@ -31,7 +31,7 @@ class ThemeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             state = SimpleNamespace(theme='dark', css_provider=Mock(), queue_draw=Mock(),
                                     player=Mock(), lyric_lines=[], plain_lyrics=[],
-                                    update_theme_icon=Mock(), settings_path=Path(folder) / 'config' / 'settings.json')
+                                    update_theme_icon=Mock(), sync_menu_state=Mock(), settings_path=Path(folder) / 'config' / 'settings.json')
             state.player.query_position.return_value = (False, 0)
             Notch.set_theme(state, 'light')
             self.assertEqual(json.loads(state.settings_path.read_text()), {'theme': 'light'})

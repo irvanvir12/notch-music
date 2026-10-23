@@ -1,0 +1,18 @@
+{
+  "description": "A floating island and notch music player with synced lyrics, an adaptive queue and audio visualizer. Linux/CachyOS + experimental Windows support.",
+  "homepage": "https://github.com/irvanvir12/notch-music/releases/latest",
+  "topics": [
+    "music-player",
+    "linux",
+    "cachyos",
+    "arch-linux",
+    "appimage",
+    "gtk3",
+    "gstreamer",
+    "python",
+    "lyrics",
+    "audio-visualizer",
+    "dynamic-island",
+    "windows"
+  ]
+}

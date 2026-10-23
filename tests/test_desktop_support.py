@@ -1,10 +1,27 @@
 import unittest
 from unittest.mock import Mock
 from types import SimpleNamespace
-from desktop_support import choose_backend, anchor_window
+from desktop_support import choose_backend, anchor_window, window_shape
 
 
 class DesktopSupportTests(unittest.TestCase):
+    def test_windows_uses_win32_instead_of_x11_or_wayland(self):
+        self.assertEqual(choose_backend({}, False, 'win32'), 'win32')
+        self.assertEqual(choose_backend({'WAYLAND_DISPLAY': 'wayland-0'}, True, 'win32'), 'win32')
+        self.assertEqual(choose_backend({'NOTCH_GDK_BACKEND': 'broadway'}, False, 'win32'), 'broadway')
+
+    def test_windows_shape_clips_floating_corners_but_keeps_docked_shoulders(self):
+        floating = window_shape(24, 0, 350, 130, False)
+        self.assertFalse(floating.contains_point(0, 10))
+        self.assertFalse(floating.contains_point(24, 0))
+        self.assertTrue(floating.contains_point(48, 0))
+        self.assertTrue(floating.contains_point(24, 40))
+        docked = window_shape(24, 0, 350, 130, True)
+        self.assertTrue(docked.contains_point(0, 0))
+        self.assertTrue(docked.contains_point(24, 0))
+        self.assertTrue(docked.contains_point(23, 10))
+        self.assertFalse(docked.contains_point(24, 129))
+
     def test_cachy_kde_prefers_native_wayland_when_layer_shell_available(self):
         env = {'XDG_CURRENT_DESKTOP': 'KDE', 'WAYLAND_DISPLAY': 'wayland-0'}
         self.assertEqual(choose_backend(env, True), 'wayland,x11')

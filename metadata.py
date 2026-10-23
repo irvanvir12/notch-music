@@ -4,6 +4,73 @@ import struct
 from pathlib import Path
 
 
+def read_audio_info(filename):
+    """Read source precision, never the decoder's output PCM precision."""
+    path = Path(filename)
+    info = {'format': path.suffix.lstrip('.').upper(), 'depth': 0, 'rate': 0, 'bitrate': 0}
+    try:
+        with path.open('rb') as stream:
+            header = stream.read(12)
+            if header[:4] == b'fLaC':
+                stream.seek(4)
+                block_header = stream.read(4)
+                if len(block_header) == 4 and block_header[0] & 127 == 0:
+                    block = stream.read(int.from_bytes(block_header[1:], 'big'))
+                    if len(block) >= 18:
+                        packed = int.from_bytes(block[10:18], 'big')
+                        info.update(format='FLAC', rate=packed >> 44, depth=((packed >> 36) & 31) + 1)
+            elif header[:4] in (b'RIFF', b'RF64') and header[8:] == b'WAVE':
+                info['format'] = 'WAV'
+                while True:
+                    chunk = stream.read(8)
+                    if len(chunk) != 8:
+                        break
+                    length = int.from_bytes(chunk[4:], 'little')
+                    if chunk[:4] == b'fmt ':
+                        block = stream.read(min(length, 40))
+                        if len(block) >= 16:
+                            info['rate'] = int.from_bytes(block[4:8], 'little')
+                            info['depth'] = int.from_bytes(block[14:16], 'little')
+                            if block[:2] == b'\xfe\xff' and len(block) >= 20:
+                                info['depth'] = int.from_bytes(block[18:20], 'little') or info['depth']
+                        break
+                    stream.seek(length + length % 2, 1)
+    except OSError:
+        return info
+    if info['rate']:
+        return info
+    try:
+        import gi
+        gi.require_version('Gst', '1.0')
+        gi.require_version('GstPbutils', '1.0')
+        from gi.repository import Gst, GstPbutils
+        Gst.init(None)
+        discovery = GstPbutils.Discoverer.new(3 * Gst.SECOND).discover_uri(path.resolve().as_uri())
+        audio = discovery.get_audio_streams()
+        if audio:
+            info['rate'] = audio[0].get_sample_rate()
+            info['bitrate'] = audio[0].get_bitrate()
+            if info['format'] in ('FLAC', 'WAV', 'AIFF', 'AIF', 'ALAC'):
+                info['depth'] = audio[0].get_depth()
+    except (ImportError, ValueError, RuntimeError):
+        pass
+    except Exception:
+        # Unsupported/corrupt streams must not stop playback or metadata loading.
+        pass
+    return info
+
+
+def format_audio_info(info):
+    parts = [info['format']]
+    if info.get('depth'):
+        parts.append(f"{info['depth']}-bit")
+    elif info.get('bitrate'):
+        parts.append(f"{round(info['bitrate'] / 1000)} kbps")
+    if info.get('rate'):
+        parts.append(f"{info['rate'] / 1000:g} kHz")
+    return ' · '.join(parts)
+
+
 def read_metadata(filename):
     path = Path(filename)
     result = {'title': '', 'artist': '', 'lyrics': '', 'picture': None}
