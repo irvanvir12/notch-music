@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.0
+
+- Menambahkan menu Playlist di bawah Browse, berisi Create Playlist dan Load Playlist.
+- Editor playlist menyatu dengan player seperti queue, dengan tombol ＋, disket, play dan hapus per lagu; mendukung drag-drop lagu/folder dari file manager.
+- Create langsung membuka daftar kosong tanpa input nama. Nama dan lokasi dipilih saat Save, lalu nama file tampil sebagai judul playlist setelah Save/Load.
+- Menyimpan playlist lokal dalam format `.notchplaylist`, berisi direktori asli lagu tanpa menyalin audio. Load memakai filter khusus playlist.
+- Lagu yang dipindahkan atau dihapus tetap terlihat dalam daftar; play menampilkan pesan dan lokasi yang tidak ditemukan tanpa menghentikan lagu yang sedang berjalan.
+- Menyimpan file secara atomik agar playlist lama tetap aman jika penulisan gagal; dokumen rusak atau versi yang tidak didukung ditolak.
+- Memperbaiki teks Minimize yang kosong saat mengambang; Minimize tetap disembunyikan pada mode notch.
+- Memperbarui README, gitignore dan bundling AppImage, Arch/CachyOS, serta Windows untuk modul playlist.
+- 55 tes otomatis, termasuk save/load, Unicode, file hilang, validasi format dan kegagalan penyimpanan.
+
 ## v0.3.1
 
 - Menambahkan Minimize sebelum Close saat player mengambang; pemutaran tetap berjalan dan player dapat dipulihkan lewat taskbar.

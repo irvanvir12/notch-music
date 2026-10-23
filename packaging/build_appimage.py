@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory(prefix='notch-appimage-') as work:
     for name in ('icons/Adwaita', 'icons/hicolor', 'glib-2.0/schemas', 'mime', 'themes/Default'):
         if (Path('/usr/share') / name).is_dir():
             tree(Path('/usr/share') / name, app / 'usr/share' / name)
-    for name in ('notch_music.py', 'metadata.py', 'selection.py', 'themes.py', 'desktop_support.py'):
+    for name in ('notch_music.py', 'metadata.py', 'playlists.py', 'selection.py', 'themes.py', 'desktop_support.py'):
         copy(ROOT / name, app / 'usr/share/notch-music' / name)
     copy(PACK / 'packaged_check.py', app / 'usr/share/notch-music/packaged_check.py')
     copy(PACK / 'AppRun', app / 'AppRun')

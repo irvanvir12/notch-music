@@ -34,3 +34,6 @@ venv/
 /packaging/arch/pkg/
 /packaging/arch/*.tar.gz
 /packaging/arch/*.pkg.tar.*
+
+# Local user playlists
+*.notchplaylist

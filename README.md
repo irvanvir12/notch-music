@@ -14,7 +14,7 @@ Pilih paket di [GitHub Releases](https://github.com/irvanvir12/notch-music/relea
 | OS | Paket | Cara menjalankan |
 | --- | --- | --- |
 | Ubuntu / Zorin / Linux x86_64 | `Notch-Music-x86_64.AppImage` | Beri izin executable lalu jalankan |
-| CachyOS / Arch x86_64 | `notch-music-0.3.1-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
+| CachyOS / Arch x86_64 | `notch-music-0.4.0-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
 | Windows 10/11 x64 (experimental) | `Notch-Music-Windows-x64.zip` | Ekstrak seluruh ZIP lalu buka `Notch-Music.exe` |
 
 Contoh untuk AppImage:
@@ -64,17 +64,26 @@ Screenshot aplikasi dari desktop pengguna; klik gambar untuk melihat ukuran penu
 - **Musik lokal:** MP3, FLAC, WAV, OGG, M4A dan format lain yang didukung codec GStreamer. Cover, judul/artis, serta lirik embedded FLAC dibaca otomatis; file `.lrc`/`.txt` pendamping didukung.
 - **Info audio:** format, bit depth sumber dan sample rate, misalnya `FLAC · 24-bit · 48 kHz`. MP3 menampilkan bitrate jika tersedia.
 - **Kontrol ringkas:** Shuffle · Prev · Play/Pause · Next · Repeat. Repeat mati/satu/semua; volume awal **30%**, mute dengan pemulihan volume sebelumnya.
+- **Playlist lokal:** Create/Load, tambah lewat ＋ atau drag-drop, save lewat disket ke `.notchplaylist`; nama mengikuti file dan lagu yang hilang dilaporkan beserta direktori asal.
 - **Queue menyatu:** pencarian nama file/judul/artis, cover kecil, tombol play, hapus per lagu, serta Clear. File asli tetap tersimpan.
 - **Lirik adaptif:** satu kalimat di mode ringkas. Saat mengambang dengan queue aktif, lirik memanjang di kanan; beberapa baris mengikuti timestamp dan baris yang lewat menghilang.
 - **Visualizer audio:** batang spektrum bersegmen dan pantulan di atas/bawah lirik, mengikuti musik serta warna tema; mereda saat pause/mute.
 - **Dark, Light, Blur:** warna teks kontras mengikuti tema; Blur transparan, efek kabur bergantung compositor. Pilihan tema tersimpan otomatis.
-- **Menu ⋯:** Browse, Queue, Volume, Lirik (On/Off), Tema, Minimize saat mengambang, dan Close. Menu tema tetap terbuka saat memilih.
+- **Menu ⋯:** Browse, Playlist, Queue, Volume, Lirik (On/Off), Tema, Minimize saat mengambang, dan Close. Menu tema tetap terbuka saat memilih.
 
 ## Minimize dan sembunyikan notch
 
 Saat mengambang, **⋯ → Minimize** berada sebelum Close. Musik tetap berjalan; buka kembali lewat taskbar. Pada Wayland layer-shell, jendela taskbar pemulihan menyediakan tombol **Kembalikan player**.
 
 Saat menempel ke atas, klik **segitiga di tengah bawah notch** hingga mengarah **ke atas** untuk mengaktifkan auto-hide. Player bergeser ke atas, menyisakan tab kecil. Arahkan pointer ke tepi atas di posisi notch untuk membukanya sementara; saat pointer keluar, player langsung bergeser menutup lagi. Hover tidak mengubah mode auto-hide. Saat terbuka, klik segitiga hingga mengarah **ke bawah** untuk menjadikannya tetap terbuka. Queue, lirik, dan pemutaran tetap dipertahankan.
+
+## Playlist lokal
+
+Pilih **⋯ → Playlist → Create Playlist** untuk membuka editor kosong yang menyatu dengan player, seperti queue. Tidak perlu mengisi nama saat membuat playlist. Gunakan ikon **＋** untuk menambahkan lagu/folder lewat dialog Browse yang sama, atau seret lagu/folder dari file manager ke player saat editor playlist terbuka. Daftar menyediakan tombol play dan hapus per lagu. Membuat atau mengedit playlist tidak menghentikan musik; menekan play memuat daftar playlist ke antrean pemutaran.
+
+Klik ikon **disket** untuk memilih lokasi simpan dan mengetik nama file pada perangkat Anda; nama file menjadi nama playlist. Nama tersebut tampil di atas daftar setelah disimpan atau di-load. Format **`.notchplaylist`** berisi nama dan direktori asli setiap lagu; file audio tidak disalin. Klik disket lagi untuk menyimpan perubahan ke file yang sama. **⋯ → Playlist → Load Playlist** membuka file chooser dengan filter khusus format tersebut. Lagu yang sudah dipindahkan/dihapus tetap terlihat sebagai **File tidak ditemukan**; menekan play menampilkan direktori asal dan alasan kegagalannya. Lokasi audio harus tetap tersedia pada perangkat tempat playlist diputar.
+
+**⋯ → Queue** kembali ke antrean pemutaran biasa. Editor playlist dan queue memakai panel yang sama; lirik tetap mengikuti aturan floating/notch seperti sebelumnya.
 
 ## Menambahkan musik
 
@@ -120,7 +129,7 @@ Paket native `.pkg.tar.zst` juga tersedia di [Releases](https://github.com/irvan
 
 ```bash
 sudo pacman -Syu
-sudo pacman -U ./notch-music-0.3.1-1-x86_64.pkg.tar.zst
+sudo pacman -U ./notch-music-0.4.0-1-x86_64.pkg.tar.zst
 notch-music
 ```
 

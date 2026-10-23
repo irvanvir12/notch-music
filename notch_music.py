@@ -14,6 +14,7 @@ from metadata import read_metadata, parse_lyrics, read_audio_info, format_audio_
 from selection import resolve_selection, prepare_file_selection
 from themes import THEMES, theme_css
 from desktop_support import configure_backend, get_layer_shell, anchor_window, window_shape
+from playlists import EXTENSION as PLAYLIST_EXTENSION, load_playlist, save_playlist
 
 import gi
 configure_backend()
@@ -153,6 +154,10 @@ class Notch(Gtk.Window):
         if visual:
             self.set_visual(visual)
         self.queue = []
+        self.playlist_tracks = []
+        self.playlist_name = 'Playlist baru'
+        self.playlist_file = None
+        self.playlist_editing = False
         self.queue_metadata = {}
         self.metadata_pending = set()
         self.index = -1
@@ -441,6 +446,15 @@ class Notch(Gtk.Window):
             return entry, text
 
         item('Browse', 'folder-open-symbolic', self.open_files)
+        playlist_item, _ = item('Playlist', 'folder-music-symbolic')
+        playlist_menu = Gtk.Menu()
+        playlist_menu.set_name('player-submenu')
+        playlist_menu.set_reserve_toggle_size(False)
+        playlist_item.set_submenu(playlist_menu)
+        for title, callback in (('Create Playlist', self.create_playlist), ('Load Playlist', self.load_playlist_dialog)):
+            choice = Gtk.MenuItem(label=title)
+            choice.connect('activate', callback)
+            playlist_menu.append(choice)
         item('Queue', 'view-list-symbolic', self.show_queue)
         volume_item, self.menu_volume_label = item('Volume', 'audio-volume-high-symbolic')
         volume_menu = Gtk.Menu()
@@ -481,6 +495,7 @@ class Notch(Gtk.Window):
             self.theme_menu_items[key] = choice
         self.player_menu.append(Gtk.SeparatorMenuItem())
         minimize, _ = item('Minimize', 'window-minimize-symbolic', self.minimize_player)
+        minimize.get_child().show_all()
         minimize.set_no_show_all(True)
         item('Close', 'window-close-symbolic', lambda *_: self.close())
         self.player_menu.connect('show', lambda *_: self.sync_menu_state())
@@ -1086,7 +1101,7 @@ class Notch(Gtk.Window):
         except OSError:
             self.status.set_text('Tema diterapkan, tetapi pilihan tidak dapat disimpan.')
 
-    def open_files(self, *_):
+    def open_files(self, *_, playlist_target=None):
         self.browse_open = True
         dialog = Gtk.FileChooserDialog(title='Tambahkan musik', transient_for=self,
                                        action=Gtk.FileChooserAction.OPEN)
@@ -1117,14 +1132,149 @@ class Notch(Gtk.Window):
             files, folders = resolve_selection(selected_files(), dialog.get_current_folder())
             dialog.destroy()
             if files:
-                self.add_files(files)
+                self.add_files(files, playlist_target=playlist_target)
             if folders:
-                self.scan_folders(folders)
+                self.scan_folders(folders, playlist_target=playlist_target)
         else:
             dialog.destroy()
         self.browse_open = False
 
-    def scan_folders(self, folders):
+    def report_problem(self, message):
+        previous = self.browse_open
+        self.browse_open = True
+        dialog = Gtk.MessageDialog(transient_for=self, modal=True, message_type=Gtk.MessageType.ERROR,
+                                   buttons=Gtk.ButtonsType.CLOSE, text='Notch Music')
+        dialog.format_secondary_text(message)
+        try:
+            dialog.run()
+        finally:
+            dialog.destroy()
+            self.browse_open = previous
+
+    def check_track_file(self, path):
+        try:
+            with path.open('rb'):
+                pass
+        except FileNotFoundError:
+            self.report_problem(f'File tidak ditemukan di direktori asal:\n{path}\n\nFile mungkin sudah dipindahkan atau dihapus.')
+            return False
+        except OSError as error:
+            self.report_problem(f'Tidak dapat membaca file:\n{path}\n\n{error.strerror or error}')
+            return False
+        return True
+
+    def create_playlist(self, *_):
+        self.playlist_tracks = []
+        self.playlist_name = 'Playlist baru'
+        self.playlist_file = None
+        self.show_queue(force=True, playlist=True)
+
+    def playlist_filter(self):
+        file_filter = Gtk.FileFilter()
+        file_filter.set_name(f'Notch Music Playlist (*{PLAYLIST_EXTENSION})')
+        file_filter.add_pattern('*' + PLAYLIST_EXTENSION)
+        file_filter.add_pattern('*' + PLAYLIST_EXTENSION.upper())
+        return file_filter
+
+    def load_playlist_dialog(self, *_):
+        self.browse_open = True
+        dialog = Gtk.FileChooserDialog(title='Load Playlist', transient_for=self, action=Gtk.FileChooserAction.OPEN)
+        dialog.add_buttons('Batal', Gtk.ResponseType.CANCEL, 'Load Playlist', Gtk.ResponseType.ACCEPT)
+        dialog.add_filter(self.playlist_filter())
+        dialog.set_default_size(800, 520)
+        filename = None
+        try:
+            if dialog.run() == Gtk.ResponseType.ACCEPT:
+                filename = dialog.get_filename()
+        finally:
+            dialog.destroy()
+            self.browse_open = False
+        if filename:
+            self.load_playlist_file(filename)
+
+    def load_playlist_file(self, filename):
+        try:
+            name, tracks = load_playlist(filename)
+        except (OSError, ValueError) as error:
+            self.report_problem(f'Tidak dapat membuka playlist:\n{filename}\n\n{error}')
+            return False
+        self.playlist_name, self.playlist_tracks = Path(filename).stem, tracks
+        self.playlist_file = Path(filename).resolve()
+        self.show_queue(force=True, playlist=True)
+        self.index_queue_metadata()
+        missing = sum(not path.is_file() for path in tracks)
+        if missing:
+            self.playlist_message(f'{missing} file tidak ditemukan. Klik play untuk melihat lokasi asalnya.')
+        return True
+
+    def playlist_message(self, message):
+        if self.playlist_editing and self.queue_enabled:
+            self.playlist_notice.set_text(message)
+            self.playlist_notice.set_tooltip_text(message)
+            self.playlist_notice.show()
+
+    def save_playlist_dialog(self, *_):
+        if self.playlist_file:
+            self.save_playlist_file(self.playlist_file)
+            return
+        self.browse_open = True
+        dialog = Gtk.FileChooserDialog(title='Save Playlist', transient_for=self, action=Gtk.FileChooserAction.SAVE)
+        dialog.add_buttons('Batal', Gtk.ResponseType.CANCEL, 'Save Playlist', Gtk.ResponseType.ACCEPT)
+        dialog.set_do_overwrite_confirmation(True)
+        dialog.add_filter(self.playlist_filter())
+        name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '-', self.playlist_name).strip(' .') or 'Playlist'
+        dialog.set_current_name(name + PLAYLIST_EXTENSION)
+        filename = None
+        try:
+            if dialog.run() == Gtk.ResponseType.ACCEPT:
+                filename = dialog.get_filename()
+        finally:
+            dialog.destroy()
+            self.browse_open = False
+        if filename:
+            if not filename.lower().endswith(PLAYLIST_EXTENSION):
+                filename += PLAYLIST_EXTENSION
+                # The chooser only confirmed the name before the suffix was
+                # added. Do not silently overwrite a different existing file.
+                if Path(filename).exists():
+                    self.report_problem(f'File sudah ada:\n{filename}\n\nSimpan lagi dengan nama lengkap beserta {PLAYLIST_EXTENSION} untuk mengonfirmasi penggantian.')
+                    return
+            self.save_playlist_file(filename)
+
+    def save_playlist_file(self, filename):
+        try:
+            name = Path(filename).stem.strip()
+            save_playlist(filename, name, self.playlist_tracks)
+        except (OSError, ValueError) as error:
+            self.report_problem(f'Tidak dapat menyimpan playlist:\n{filename}\n\n{error}')
+            return False
+        self.playlist_name = name
+        self.playlist_title_label.set_text(name)
+        self.playlist_title_label.set_tooltip_text(name)
+        self.playlist_file = Path(filename).resolve()
+        self.playlist_message(f'Tersimpan: {self.playlist_file.name}')
+        return True
+
+    def play_visible_track(self, index):
+        if not self.playlist_editing:
+            return self.load(index)
+        if not 0 <= index < len(self.playlist_tracks):
+            return False
+        if not self.check_track_file(self.playlist_tracks[index]):
+            return False
+        self.queue = list(self.playlist_tracks)
+        self.history.clear()
+        self.shuffle_remaining = list(range(len(self.queue)))
+        return self.load(index)
+
+    def remove_visible_track(self, index):
+        if not self.playlist_editing:
+            return self.remove_track(index)
+        if 0 <= index < len(self.playlist_tracks):
+            self.playlist_tracks.pop(index)
+            self.refresh_queue()
+
+    def scan_folders(self, folders, playlist_target=None):
         self.status.set_text('Memindai folder…')
         def scan():
             files = []
@@ -1133,16 +1283,25 @@ class Notch(Gtk.Window):
                     subdirs.sort(key=str.casefold)
                     files.extend(Path(directory) / name for name in sorted(names, key=str.casefold)
                                  if Path(name).suffix.lower() in AUDIO)
-            GLib.idle_add(self.folder_scanned, files)
+            GLib.idle_add(self.folder_scanned, files, playlist_target)
         threading.Thread(target=scan, daemon=True).start()
 
-    def folder_scanned(self, files):
-        self.add_files(files)
+    def folder_scanned(self, files, playlist_target=None):
+        self.add_files(files, playlist_target=playlist_target)
         if not files:
             self.status.set_text('Tidak ada file musik di folder')
         return False
 
-    def add_files(self, files):
+    def add_files(self, files, playlist_target=None):
+        if playlist_target is not None:
+            for filename in files:
+                path = Path(filename).expanduser().resolve()
+                if path.is_file() and path.suffix.lower() in AUDIO:
+                    playlist_target.append(path)
+            self.index_queue_metadata()
+            if self.drawer_mode == 'queue':
+                self.refresh_queue()
+            return
         for filename in files:
             path = Path(filename).expanduser().resolve()
             if path.is_file() and path.suffix.lower() in AUDIO:
@@ -1160,6 +1319,10 @@ class Notch(Gtk.Window):
         self.status.set_text(f'{len(self.queue)} lagu dalam antrean' if self.queue else 'Musikmu, selalu dekat.')
 
     def load(self, index):
+        if not 0 <= index < len(self.queue):
+            return False
+        if not self.check_track_file(self.queue[index]):
+            return False
         self.player.set_state(Gst.State.NULL)
         self.index = index
         self.shuffle_remaining = [i for i in self.shuffle_remaining if i != index]
@@ -1182,9 +1345,10 @@ class Notch(Gtk.Window):
         self.sync_play_icons()
         if self.drawer_mode == 'queue':
             self.mark_current_track()
+        return True
 
     def apply_metadata(self, path, metadata):
-        if self.index < 0 or self.queue[self.index] != path:
+        if not 0 <= self.index < len(self.queue) or self.queue[self.index] != path:
             return False
         if metadata.get('audio_info'):
             details = format_audio_info(metadata['audio_info'])
@@ -1459,7 +1623,8 @@ class Notch(Gtk.Window):
                     label.set_text(value)
 
     def index_queue_metadata(self):
-        pending = [path for path in dict.fromkeys(self.queue)
+        sources = self.queue + (self.playlist_tracks if self.playlist_editing else [])
+        pending = [path for path in dict.fromkeys(sources)
                    if path not in self.queue_metadata and path not in self.metadata_pending]
         if not pending:
             return
@@ -1490,7 +1655,10 @@ class Notch(Gtk.Window):
             self.present_with_time(timestamp)
             if self.get_window():
                 self.get_window().focus(timestamp)
-        self.search.grab_focus()
+        if self.playlist_editing:
+            self.listing.grab_focus()
+        else:
+            self.search.grab_focus()
         return False
 
     def on_search_changed(self, entry):
@@ -1499,19 +1667,37 @@ class Notch(Gtk.Window):
             self.queue_scroll.get_vadjustment().set_value(0)
 
     def activate_search_result(self, entry):
-        matches = search_tracks(self.queue, entry.get_text(), self.queue_metadata)
+        tracks = self.playlist_tracks if getattr(self, 'playlist_editing', False) else self.queue
+        matches = search_tracks(tracks, entry.get_text(), self.queue_metadata)
         if matches:
-            self.load(matches[0][0])
+            if getattr(self, 'playlist_editing', False):
+                self.play_visible_track(matches[0][0])
+            else:
+                self.load(matches[0][0])
 
-    def show_queue(self, *_, force=False):
-        if self.queue_enabled and not force:
+    def show_queue(self, *_, force=False, playlist=False):
+        if self.queue_enabled and not force and self.playlist_editing == playlist:
             self.queue_enabled = False
             self.update_panel_layout()
             return
         self.queue_ui_ready = False
-        self.open_drawer('queue', 'Antrean musik')
-        actions = Gtk.Box()
-        self.button(actions, 'Clear', 'Kosongkan antrean (file musik tetap tersimpan)', self.clear_queue)
+        self.playlist_editing = playlist
+        self.open_drawer('queue', 'Playlist' if playlist else 'Antrean musik')
+        actions = Gtk.Box(spacing=3)
+        if playlist:
+            self.playlist_title_label = Gtk.Label(label=self.playlist_name, xalign=0)
+            self.playlist_title_label.set_ellipsize(Pango.EllipsizeMode.END)
+            self.playlist_title_label.set_max_width_chars(20)
+            self.playlist_title_label.set_tooltip_text(self.playlist_name)
+            self.playlist_title_label.get_style_context().add_class('track-title')
+            actions.pack_start(self.playlist_title_label, True, True, 0)
+            self.playlist_add_button = self.icon_button(actions, 'list-add-symbolic', 'Tambah lagu ke playlist',
+                lambda *_: self.open_files(playlist_target=self.playlist_tracks))
+            self.playlist_save_button = self.icon_button(actions, 'media-floppy-symbolic', 'Save Playlist', self.save_playlist_dialog)
+            self.playlist_add_button.get_image().set_pixel_size(16)
+            self.playlist_save_button.get_image().set_pixel_size(16)
+        else:
+            self.button(actions, 'Clear', 'Kosongkan antrean (file musik tetap tersimpan)', self.clear_queue)
         self.drawer_content.pack_start(actions, False, False, 0)
         self.search = Gtk.SearchEntry()
         self.search.set_width_chars(14)
@@ -1520,8 +1706,15 @@ class Notch(Gtk.Window):
         self.search.connect('changed', self.on_search_changed)
         self.search.connect('activate', self.activate_search_result)
         self.search.connect('button-press-event', self.focus_search)
-        actions.pack_start(self.search, True, True, 0)
-        actions.reorder_child(self.search, 0)
+        if not playlist:
+            actions.pack_start(self.search, True, True, 0)
+            actions.reorder_child(self.search, 0)
+        self.playlist_notice = Gtk.Label(xalign=0)
+        self.playlist_notice.set_name('drawer-subtitle')
+        self.playlist_notice.set_ellipsize(Pango.EllipsizeMode.END)
+        self.playlist_notice.set_max_width_chars(26)
+        self.playlist_notice.set_no_show_all(True)
+        self.drawer_content.pack_start(self.playlist_notice, False, False, 0)
         scroll = Gtk.ScrolledWindow()
         self.queue_scroll = scroll
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -1532,7 +1725,7 @@ class Notch(Gtk.Window):
         self.listing.set_margin_end(4)
         self.listing.set_selection_mode(Gtk.SelectionMode.NONE)
         self.listing.set_activate_on_single_click(True)
-        self.listing.connect('row-activated', lambda box, row: self.load(row.track_index) if hasattr(row, 'track_index') else None)
+        self.listing.connect('row-activated', lambda box, row: self.play_visible_track(row.track_index) if hasattr(row, 'track_index') else None)
         scroll.add(self.listing)
         self.drawer_content.pack_start(scroll, False, False, 0)
         self.queue_ui_ready = True
@@ -1546,7 +1739,10 @@ class Notch(Gtk.Window):
             if not isinstance(row, Gtk.ListBoxRow) or not hasattr(row, 'track_index'):
                 continue
             context = row.get_style_context()
-            if row.track_index == self.index:
+            current = (0 <= self.index < len(self.queue) and
+                       (self.playlist_tracks[row.track_index] == self.queue[self.index]
+                        if self.playlist_editing else row.track_index == self.index))
+            if current:
                 context.add_class('current-track')
                 row.play_button.get_style_context().add_class('enabled')
             else:
@@ -1559,7 +1755,8 @@ class Notch(Gtk.Window):
         for row in self.listing.get_children():
             row.destroy()
         query = self.search.get_text().strip()
-        matches = search_tracks(self.queue, query, self.queue_metadata)
+        tracks = self.playlist_tracks if self.playlist_editing else self.queue
+        matches = search_tracks(tracks, query, self.queue_metadata)
         rows = []
         for index, path in matches[:100]:
             row = Gtk.ListBoxRow()
@@ -1577,20 +1774,22 @@ class Notch(Gtk.Window):
             name.set_max_width_chars(40)
             name.get_style_context().add_class('track-title')
             text.pack_start(name, False, False, 0)
-            subtitle = Gtk.Label(label=artist, xalign=0)
+            missing = self.playlist_editing and not path.is_file()
+            row.set_tooltip_text(f'File tidak ditemukan di direktori asal:\n{path}' if missing else str(path))
+            subtitle = Gtk.Label(label='File tidak ditemukan' if missing else artist, xalign=0)
             subtitle.set_ellipsize(Pango.EllipsizeMode.END)
             subtitle.set_max_width_chars(40)
             subtitle.get_style_context().add_class('track-artist')
             text.pack_start(subtitle, False, False, 0)
-            self.icon_button(box, 'edit-delete-symbolic', 'Hapus dari antrean',
-                             lambda button, track=index: self.remove_track(track))
+            self.icon_button(box, 'edit-delete-symbolic', 'Hapus dari playlist' if self.playlist_editing else 'Hapus dari antrean',
+                             lambda button, track=index: self.remove_visible_track(track))
             row.play_button = self.icon_button(
                 box, 'media-playback-start-symbolic', 'Putar lagu ini',
-                lambda button, track=index: self.load(track))
+                lambda button, track=index: self.play_visible_track(track))
             self.listing.add(row)
             rows.append((path, image))
         if not matches:
-            empty = Gtk.Label(label='Tidak ada lagu yang cocok.' if query else 'Antrean kosong. Tambahkan musik lewat ＋.')
+            empty = Gtk.Label(label='Tidak ada lagu yang cocok.' if query else ('Playlist kosong. Tambahkan lewat ＋\natau seret lagu ke sini.' if self.playlist_editing else 'Antrean kosong. Tambahkan musik lewat ＋.'))
             empty.set_margin_top(25)
             empty.set_margin_bottom(25)
             self.listing.add(empty)
@@ -1629,7 +1828,12 @@ class Notch(Gtk.Window):
                     paths.append(path)
             except GLib.Error:
                 pass
-        self.add_files(paths)
+        target = self.playlist_tracks if self.playlist_editing and self.queue_enabled else None
+        files = [path for path in paths if Path(path).is_file()]
+        folders = [Path(path) for path in paths if Path(path).is_dir()]
+        self.add_files(files, playlist_target=target)
+        if folders:
+            self.scan_folders(folders, playlist_target=target)
         Gtk.drag_finish(context, bool(paths), False, timestamp)
 
     def keypress(self, widget, event):

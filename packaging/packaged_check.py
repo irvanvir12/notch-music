@@ -11,6 +11,7 @@ for namespace, version in [('Gtk', '3.0'), ('Gst', '1.0'), ('GdkPixbuf', '2.0')]
 from gi.repository import Gtk, Gst, GdkPixbuf
 from notch_music import CSS
 from themes import THEMES, theme_css
+from playlists import save_playlist, load_playlist
 Gst.init(None)
 for name in THEMES:
     provider = Gtk.CssProvider()
@@ -30,6 +31,9 @@ with tempfile.TemporaryDirectory() as folder:
     with wave.open(str(audio), 'wb') as stream:
         stream.setparams((1, 2, 8000, 0, 'NONE', 'not compressed'))
         stream.writeframes(b'\0\0' * 800)
+    playlist = Path(folder) / 'Test.notchplaylist'
+    save_playlist(playlist, 'Test', [audio])
+    assert load_playlist(playlist) == ('Test', [audio])
     player = Gst.ElementFactory.make('playbin')
     player.set_property('audio-sink', Gst.ElementFactory.make('fakesink'))
     player.set_property('uri', audio.as_uri())
