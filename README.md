@@ -77,6 +77,12 @@ Saat mengambang, **⋯ → Minimize** berada sebelum Close. Musik tetap berjalan
 
 Saat menempel ke atas, klik **segitiga di tengah bawah notch** hingga mengarah **ke atas** untuk mengaktifkan auto-hide. Player bergeser ke atas, menyisakan tab kecil. Arahkan pointer ke tepi atas di posisi notch untuk membukanya sementara; saat pointer keluar, player langsung bergeser menutup lagi. Hover tidak mengubah mode auto-hide. Saat terbuka, klik segitiga hingga mengarah **ke bawah** untuk menjadikannya tetap terbuka. Queue, lirik, dan pemutaran tetap dipertahankan.
 
+## Tombol media dan headset Bluetooth (Linux)
+
+Notch Music menyediakan **MPRIS** pada session D-Bus Linux. Desktop dapat meneruskan tombol **Play/Pause, Next, Previous, Stop**, volume dan seek dari headset Bluetooth, keyboard multimedia, atau kontrol media sistem. Identitas player tampil sebagai **Notch Music**; layanan memakai `org.mpris.MediaPlayer2.notch_music.instance<PID>` agar beberapa instance tidak berebut nama.
+
+Putar lagu di Notch Music, lalu gunakan tombol headset. Jika ada beberapa player atau browser yang juga aktif, desktop mungkin memilih player lain; hentikan pemutaran lain saat mengecek. Integrasi ini tidak mengubah pairing atau pengaturan Bluetooth. Dukungan MPRIS ini khusus Linux; Windows tetap memakai kontrol di aplikasi.
+
 ## Playlist lokal
 
 Pilih **⋯ → Playlist → Create Playlist** untuk membuka editor kosong yang menyatu dengan player, seperti queue. Tidak perlu mengisi nama saat membuat playlist. Gunakan ikon **＋** untuk menambahkan lagu/folder lewat dialog Browse yang sama, atau seret lagu/folder dari file manager ke player saat editor playlist terbuka. Daftar menyediakan tombol play dan hapus per lagu. Membuat atau mengedit playlist tidak menghentikan musik; menekan play memuat daftar playlist ke antrean pemutaran.
@@ -211,6 +217,6 @@ Workflow [Release](.github/workflows/release.yml) menguji Arch/CachyOS, AppImage
 
 Pada GNOME Wayland, aplikasi memakai XWayland untuk posisi atas dan keep-above. Window manager menentukan posisi akhir; panel sistem dapat bertumpuk dengan notch. Area di luar notch tetap meneruskan klik, dan aplikasi tidak mengubah pengaturan panel desktop.
 
-Tema **Blur** bersifat transparan; efek kabur sebenarnya bergantung pada compositor. Lirik tersinkron memerlukan timestamp; lirik tanpa timing menampilkan kalimat awal serta teks penuh pada tooltip. Highlight mengikuti **per baris/kalimat**, bukan per kata. Spotify/MPRIS, autostart, dan penyimpanan antrean antar-sesi belum tersedia.
+Tema **Blur** bersifat transparan; efek kabur sebenarnya bergantung pada compositor. Lirik tersinkron memerlukan timestamp; lirik tanpa timing menampilkan kalimat awal serta teks penuh pada tooltip. Highlight mengikuti **per baris/kalimat**, bukan per kata. Integrasi Spotify, autostart, dan penyimpanan antrean antar-sesi belum tersedia.
 
 Pengaturan tema disimpan di `$XDG_CONFIG_HOME/notch-music/settings.json` (default `~/.config/notch-music/settings.json`).

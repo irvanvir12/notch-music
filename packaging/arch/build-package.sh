@@ -9,7 +9,7 @@ from pathlib import Path
 root = Path(sys.argv[1])
 version = root.joinpath('VERSION').read_text().strip()
 with tarfile.open(f'notch-music-{version}.tar.gz', 'w:gz') as archive:
-    for name in ('notch_music.py', 'metadata.py', 'playlists.py', 'selection.py', 'themes.py', 'desktop_support.py',
+    for name in ('notch_music.py', 'metadata.py', 'playlists.py', 'mpris.py', 'selection.py', 'themes.py', 'desktop_support.py',
                  'README.md', 'assets', 'packaging/notch-music.desktop', 'tests'):
         archive.add(root / name, arcname=f'notch-music-{version}/{name}',
                     filter=lambda info: None if '__pycache__' in info.name or info.name.endswith('.pyc') else info)

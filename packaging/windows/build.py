@@ -45,7 +45,7 @@ def build():
         (config / 'settings.ini').write_text('[Settings]\ngtk-theme-name=Adwaita\ngtk-font-name=Segoe UI 9\n', encoding='utf-8')
         app = bundle / 'app'
         app.mkdir()
-        for name in ('notch_music.py', 'metadata.py', 'playlists.py', 'selection.py', 'themes.py', 'desktop_support.py'):
+        for name in ('notch_music.py', 'metadata.py', 'playlists.py', 'mpris.py', 'selection.py', 'themes.py', 'desktop_support.py'):
             shutil.copy2(ROOT / name, app / name)
         (app / 'assets').mkdir()
         shutil.copy2(ROOT / 'assets/notch-music-logo-v2.png', app / 'assets/notch-music-logo-v2.png')

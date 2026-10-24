@@ -15,6 +15,7 @@ from selection import resolve_selection, prepare_file_selection
 from themes import THEMES, theme_css
 from desktop_support import configure_backend, get_layer_shell, anchor_window, window_shape
 from playlists import EXTENSION as PLAYLIST_EXTENSION, load_playlist, save_playlist
+from mpris import MprisService
 
 import gi
 configure_backend()
@@ -422,6 +423,7 @@ class Notch(Gtk.Window):
         self.connect('leave-notify-event', self.notch_pointer_crossing, False)
         self.build_player_menu(volume_row)
         self.add_files(files)
+        self.mpris = MprisService(self)
 
     def build_player_menu(self, volume_row):
         self._syncing_menu = False
@@ -1858,6 +1860,7 @@ class Notch(Gtk.Window):
         return False
 
     def shutdown(self, *_):
+        self.mpris.close()
         GLib.source_remove(self.hover_source)
         if self.restore_window:
             self.restore_window.destroy()

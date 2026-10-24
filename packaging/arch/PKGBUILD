@@ -20,7 +20,7 @@ check() {
 package() {
     cd "$srcdir/notch-music-${pkgver}"
     install -d "$pkgdir/usr/lib/notch-music/assets"
-    install -m644 notch_music.py metadata.py playlists.py selection.py themes.py desktop_support.py "$pkgdir/usr/lib/notch-music/"
+    install -m644 notch_music.py metadata.py playlists.py mpris.py selection.py themes.py desktop_support.py "$pkgdir/usr/lib/notch-music/"
     install -m644 assets/notch-music-logo-v2.png "$pkgdir/usr/lib/notch-music/assets/"
     install -Dm644 packaging/notch-music.desktop "$pkgdir/usr/share/applications/notch-music.desktop"
     install -Dm644 assets/notch-music-logo-v2.png "$pkgdir/usr/share/pixmaps/notch-music.png"
