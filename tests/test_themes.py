@@ -11,12 +11,14 @@ from themes import THEMES, theme_css
 
 class ThemeTests(unittest.TestCase):
     def test_all_stylesheets_parse(self):
-        for name in THEMES:
-            provider = Gtk.CssProvider()
-            errors = []
-            provider.connect('parsing-error', lambda provider, section, error: errors.append(error))
-            provider.load_from_data(theme_css(CSS, name))
-            self.assertEqual(errors, [])
+        for platform in ('linux', 'win32'):
+            for name in THEMES:
+                with self.subTest(platform=platform, theme=name):
+                    provider = Gtk.CssProvider()
+                    errors = []
+                    provider.connect('parsing-error', lambda provider, section, error: errors.append(error))
+                    provider.load_from_data(theme_css(CSS, name, platform))
+                    self.assertEqual(errors, [])
 
     def test_blur_has_transparency(self):
         self.assertLess(THEMES['blur']['surface'][3], 1)

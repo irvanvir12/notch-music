@@ -1,6 +1,8 @@
 """Run on Windows CI against the relocated bundle; never outputs audio."""
 from pathlib import Path
 import math
+import cairo
+import ctypes
 import struct
 import tempfile
 import wave
@@ -26,6 +28,8 @@ with tempfile.TemporaryDirectory(prefix='notch-windows-') as folder:
                                   for i in range(44100 * 3)))
     assert format_audio_info(read_audio_info(path)) == 'WAV · 16-bit · 44.1 kHz'
     window = Notch([])
+    assert Gtk.Settings.get_default().get_property('gtk-xft-rgba') == 'none'
+    assert window.get_screen().get_font_options().get_antialias() == cairo.ANTIALIAS_GRAY
     window.settings_path = Path(folder) / 'settings.json'
     sink = Gst.ElementFactory.make('fakesink')
     sink.set_property('sync', True)
@@ -38,6 +42,20 @@ with tempfile.TemporaryDirectory(prefix='notch-windows-') as folder:
     assert window.spectrum is not None
     assert window.visualizer_updated > 0
     assert max(window.visualizer_target) > 0
+    media = window.mpris.windows
+    assert media.ready.wait(3), 'Windows media-key listener did not start'
+    assert len(media.registered) == len(media.KEYS), 'Media keys could not be registered'
+    play_pause = next(identifier for identifier, method in media.registered.items() if method == 'PlayPause')
+    from ctypes import wintypes
+    post = ctypes.windll.user32.PostThreadMessageW
+    post.argtypes = (wintypes.DWORD, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+    post.restype = wintypes.BOOL
+    assert post(media.thread_id, media.WM_HOTKEY, play_pause, 0)
+    pump()
+    assert not window.playing, 'Native media message did not pause playback'
+    assert post(media.thread_id, media.WM_HOTKEY, play_pause, 0)
+    pump()
+    assert window.playing, 'Native media message did not resume playback'
     window.show_queue()
     pump()
     assert window.queue_enabled and window.lyrics_enabled
@@ -61,6 +79,13 @@ with tempfile.TemporaryDirectory(prefix='notch-windows-') as folder:
     assert len(window.playlist_tracks) == 1 and window.playlist_tracks[0].samefile(path)
     assert window.queue == original_queue
     window.close_drawer()
+    monitor = window.get_display().get_primary_monitor() or window.get_display().get_monitor(0)
+    area = monitor.get_geometry()
+    window.animate_snap(area)
+    pump(700)
+    assert window.docked and window.snap_tick is None
+    assert window.bezel_bar is None, 'Windows must not create a monitor-wide bezel window'
     window.player.set_state(Gst.State.NULL)
     window.destroy()
-print('Relocated Windows bundle: GTK, playback, spectrum, themes, queue, lyrics and mute OK')
+    assert not media.thread.is_alive(), 'Media-key listener did not stop'
+print('Relocated Windows bundle: GTK, playback, spectrum, themes, queue, lyrics, mute, docking and media keys OK')

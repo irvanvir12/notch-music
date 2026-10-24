@@ -151,6 +151,15 @@ class Notch(Gtk.Window):
         self.set_skip_taskbar_hint(True)
         self.set_type_hint(Gdk.WindowTypeHint.DOCK)
         self.set_app_paintable(True)
+        if sys.platform == 'win32':
+            # Avoid colored subpixel fringes on small text over dark or
+            # translucent surfaces. These settings affect only this process.
+            settings = Gtk.Settings.get_default()
+            settings.set_property('gtk-xft-antialias', 1)
+            settings.set_property('gtk-xft-rgba', 'none')
+            options = cairo.FontOptions()
+            options.set_antialias(cairo.ANTIALIAS_GRAY)
+            self.get_screen().set_font_options(options)
         visual = self.get_screen().get_rgba_visual()
         if visual:
             self.set_visual(visual)
@@ -815,7 +824,8 @@ class Notch(Gtk.Window):
                     self.update_panel_layout()
                 self.docked = True
                 self.connection_progress = min(1.0, (elapsed - 220000) / 180000)
-                self.bezel_bar.set_opacity(self.connection_progress)
+                if self.bezel_bar is not None:
+                    self.bezel_bar.set_opacity(self.connection_progress)
                 self.notch.get_style_context().remove_class('floating')
                 self.notch.get_style_context().add_class('docked')
             finished = elapsed >= 400000
@@ -827,6 +837,11 @@ class Notch(Gtk.Window):
         self.snap_tick = self.add_tick_callback(frame)
 
     def show_bezel_bar(self, area):
+        # Win32 can enlarge/reposition this two-pixel top-level window. Draw
+        # the connection inside the shaped player instead of creating a
+        # monitor-wide window there. Linux retains its existing bezel bar.
+        if sys.platform == 'win32':
+            return
         if self.bezel_bar is None:
             bar = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
             self.bezel_bar = bar

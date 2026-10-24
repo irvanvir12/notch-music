@@ -55,6 +55,7 @@ class MprisService:
         self.previous = {}
         self.stopped = False
         self.name = f'{ROOT}.notch_music.instance{os.getpid()}'
+        self.windows = WindowsMediaKeys(self) if sys.platform == 'win32' else None
         if not sys.platform.startswith('linux'):
             return
         try:
@@ -221,6 +222,9 @@ class MprisService:
         return True
 
     def close(self):
+        if getattr(self, 'windows', None) is not None:
+            self.windows.close()
+            self.windows = None
         if self.source is not None:
             GLib.source_remove(self.source)
             self.source = None
@@ -232,3 +236,69 @@ class MprisService:
                 self.connection.unregister_object(registration)
         self.registrations = []
         self.connection = None
+
+
+class WindowsMediaKeys:
+    """Receive Win32 media keys on a private thread; dispatch on GTK's thread.
+
+    RegisterHotKey delivers WM_HOTKEY even when the player is not focused.
+    Keep its message queue separate so GTK cannot consume those messages.
+    Volume keys remain under Windows' system-volume control.
+    """
+    KEYS = {0xB3: 'PlayPause', 0xB0: 'Next', 0xB1: 'Previous', 0xB2: 'Stop'}
+    WM_HOTKEY = 0x0312
+
+    def __init__(self, service):
+        import threading
+        self.service = service
+        self.stopping = threading.Event()
+        self.ready = threading.Event()
+        self.registered = {}
+        self.thread_id = None
+        self.thread = threading.Thread(target=self.listen, name='notch-media-keys', daemon=True)
+        self.thread.start()
+
+    def deliver(self, method):
+        if not self.stopping.is_set():
+            self.service.dispatch(PLAYER, method, ())
+        return False
+
+    def listen(self):
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.WinDLL('user32', use_last_error=True)
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        user32.RegisterHotKey.argtypes = (wintypes.HWND, ctypes.c_int, wintypes.UINT, wintypes.UINT)
+        user32.RegisterHotKey.restype = wintypes.BOOL
+        user32.UnregisterHotKey.argtypes = (wintypes.HWND, ctypes.c_int)
+        user32.UnregisterHotKey.restype = wintypes.BOOL
+        user32.PeekMessageW.argtypes = (ctypes.POINTER(wintypes.MSG), wintypes.HWND,
+                                       wintypes.UINT, wintypes.UINT, wintypes.UINT)
+        user32.PeekMessageW.restype = wintypes.BOOL
+        kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+        self.thread_id = kernel32.GetCurrentThreadId()
+        try:
+            for offset, (key, method) in enumerate(self.KEYS.items()):
+                identifier = 0x4E00 + offset
+                if user32.RegisterHotKey(None, identifier, 0x4000, key):  # MOD_NOREPEAT
+                    self.registered[identifier] = method
+                else:
+                    print(f'Notch Music: media key {method} unavailable (Win32 {ctypes.get_last_error()}).',
+                          file=sys.stderr)
+            self.ready.set()
+            message = wintypes.MSG()
+            while not self.stopping.is_set():
+                while user32.PeekMessageW(ctypes.byref(message), None,
+                                         self.WM_HOTKEY, self.WM_HOTKEY, 1):
+                    method = self.registered.get(message.wParam)
+                    if method is not None and not self.stopping.is_set():
+                        GLib.idle_add(self.deliver, method)
+                self.stopping.wait(.02)
+        finally:
+            for identifier in self.registered:
+                user32.UnregisterHotKey(None, identifier)
+            self.ready.set()
+
+    def close(self):
+        self.stopping.set()
+        self.thread.join(timeout=2)

@@ -1,6 +1,6 @@
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from notch_music import Notch, Gdk
 
@@ -14,6 +14,33 @@ def dock():
 
 
 class NotchVisibilityTests(unittest.TestCase):
+    def test_windows_does_not_create_monitor_wide_bezel(self):
+        state = SimpleNamespace(bezel_bar=None)
+        with patch('notch_music.sys.platform', 'win32'), patch('notch_music.Gtk.Window') as create:
+            Notch.show_bezel_bar(state, SimpleNamespace(width=1920, x=0, y=0))
+        create.assert_not_called()
+        self.assertIsNone(state.bezel_bar)
+
+    def test_snap_finishes_with_or_without_bezel_window(self):
+        for bar in (None, Mock()):
+            with self.subTest(bezel=bar):
+                state = SimpleNamespace(
+                    floating_center=960, floating_y=24, docked=False,
+                    bezel_bar=bar, place_floating=Mock(), show_bezel_bar=Mock(),
+                    set_type_hint=Mock(), set_skip_taskbar_hint=Mock(),
+                    update_dock_handle=Mock(), update_panel_layout=Mock(),
+                    notch=Mock(), queue_draw=Mock(), add_tick_callback=Mock(return_value=1))
+                with patch('notch_music.GLib.get_monotonic_time', return_value=1000000):
+                    Notch.animate_snap(state, SimpleNamespace(x=0, y=0, width=1920))
+                frame = state.add_tick_callback.call_args.args[0]
+                self.assertFalse(frame(state, SimpleNamespace(get_frame_time=lambda: 1400000)))
+                self.assertTrue(state.docked)
+                self.assertEqual(state.floating_y, 0)
+                self.assertEqual(state.connection_progress, 1)
+                self.assertIsNone(state.snap_tick)
+                if bar is not None:
+                    bar.set_opacity.assert_called_once_with(1)
+
     def test_autohide_waits_for_exit_then_follows_pointer(self):
         state = dock()
         state.player_menu.get_mapped.return_value = False

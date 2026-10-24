@@ -1,4 +1,6 @@
 """Theme palettes shared by GTK styling and the notch's painted shoulders."""
+import sys
+
 THEMES = {
     'dark': {'name': 'Dark', 'description': 'Gelap dan kontras untuk mendengarkan malam hari.',
              'surface': (0, 0, 0, 1), 'lyric_dim': '#9197a6'},
@@ -9,12 +11,29 @@ THEMES = {
 }
 
 
-def theme_css(base, theme):
+def theme_css(base, theme, platform=None):
+    platform = sys.platform if platform is None else platform
+    if platform == 'win32' and theme in ('dark', 'blur'):
+        base += b'''
+#notch-window, #player-menu, #player-submenu {
+    font-family: "Segoe UI", sans-serif;
+    font-size: 13px;
+    color: #f2f2f2;
+    text-shadow: none;
+}
+#notch-window label, #player-menu label, #player-submenu label { text-shadow: none; }
+#title { color: #fafafa; }
+#artist, #audio-info, #time, #drawer-subtitle { color: #d9d9d9; }
+#audio-info, #time { font-size: 11px; }
+#notch row .track-artist { color: #d9d9d9; }
+#player-menu menuitem, #player-submenu menuitem { color: #f2f2f2; }
+'''
     if theme == 'dark':
-        return base.replace(b'background: #101116;', b'background: #000000;').replace(
+        css = base.replace(b'background: #101116;', b'background: #000000;').replace(
             b'#bar { background: #08090b;', b'#bar { background: #000000;').replace(
             b'#notch { background: #000000; border: 1px solid #292b35;',
             b'#notch { background: #000000; border: 1px solid #000000;')
+        return css
     if theme == 'light':
         replacements = {
             '#101116': '#f5f6fa', '#fafafa': '#242735', '#292b35': '#d7dbe5',
