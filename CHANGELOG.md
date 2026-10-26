@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.5.0
 
+- Linux: menambahkan integrasi MPRIS untuk Play/Pause, Next, Previous, Stop, seek, volume, repeat, shuffle, dan metadata melalui headset/TWS, keyboard multimedia, atau kontrol media desktop.
 - Windows: menambahkan Play/Pause, Next, Previous, dan Stop melalui tombol media sistem untuk headset/TWS yang mengirim media key Windows; memakai perilaku pemutaran yang sama dengan MPRIS Linux.
 - Windows: menghilangkan jendela garis hitam selebar monitor saat docking; mempertahankan bahu notch dan animasinya.
 - Windows: memperjelas teks dark/blur dan memakai antialias grayscale untuk mengurangi tepi huruf berwarna. Tampilan dan integrasi MPRIS Zorin/Linux tetap dipertahankan.

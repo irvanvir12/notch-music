@@ -14,8 +14,8 @@ Pilih paket di [GitHub Releases](https://github.com/irvanvir12/notch-music/relea
 | OS | Paket | Cara menjalankan |
 | --- | --- | --- |
 | Ubuntu / Zorin / Linux x86_64 | `Notch-Music-x86_64.AppImage` | Beri izin executable lalu jalankan |
-| CachyOS / Arch x86_64 | `notch-music-0.4.1-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
-| Windows 10/11 x64 (experimental) | `Notch-Music-Windows-x64.zip` | Ekstrak seluruh ZIP lalu buka `Notch-Music.exe` |
+| CachyOS / Arch x86_64 | `notch-music-0.5.0-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
+| Windows 10/11 x64 | `Notch-Music-Windows-x64.zip` | Ekstrak seluruh ZIP lalu buka `Notch-Music.exe` |
 
 Contoh untuk AppImage:
 
@@ -137,7 +137,7 @@ Paket native `.pkg.tar.zst` juga tersedia di [Releases](https://github.com/irvan
 
 ```bash
 sudo pacman -Syu
-sudo pacman -U ./notch-music-0.4.1-1-x86_64.pkg.tar.zst
+sudo pacman -U ./notch-music-0.5.0-1-x86_64.pkg.tar.zst
 notch-music
 ```
 
@@ -171,9 +171,9 @@ NOTCH_GDK_BACKEND=wayland ./run.sh
 
 Bila compositor tidak mendukung layer-shell, fallback XWayland dipakai jika tersedia. Dukungan posisi, transparansi, dan panel tetap bergantung pada compositor. CI menguji source, build, dan instalasi paket di container Arch; ini bukan pengujian visual pada desktop CachyOS asli.
 
-## Windows 10/11 x64 — experimental
+## Windows 10/11 x64
 
-Build Windows x64 telah melewati unit test dan smoke test paket portable di runner Windows. Jalur Windows menggunakan backend Win32 dengan runtime Python, GTK dan GStreamer yang ikut dibundel. Paket Windows hanya dimasukkan ke release setelah build dan smoke test di runner Windows berhasil. Dukungan ini masih **experimental**: transparansi, penempatan jendela, dan snap perlu diuji langsung pada desktop Windows.
+Build Windows x64 memakai backend Win32 dengan runtime Python, GTK, dan GStreamer yang ikut dibundel. Paket Windows hanya dimasukkan ke release setelah unit test dan smoke test paket portable berhasil di runner Windows.
 
 ### Menjalankan source di Windows
 
@@ -202,7 +202,7 @@ pacman -S --needed mingw-w64-ucrt-x86_64-gcc
 
 Hasil setelah build dan smoke test berhasil: `dist/Notch-Music-Windows-x64.zip` beserta SHA-256. Ekstrak **seluruh ZIP** dan buka `Notch-Music.exe`; folder `runtime` dan `app` harus tetap bersamanya. Runtime Python, GTK, GStreamer, codec, dan ikon ikut dibundel. Log kesalahan disimpan di `%LOCALAPPDATA%\Notch Music\notch-music.log`.
 
-Workflow [Windows portable build](.github/workflows/windows.yml) dapat dijalankan manual dan dipanggil oleh workflow release. Workflow membangun di Windows, menguji paket dengan lingkungan MSYS2 dibersihkan dari PATH, lalu menyimpan ZIP sebagai **artifact Actions**. Workflow release menyertakannya bersama paket Linux setelah semua build lolos. Pengujian meliputi GTK, audio tanpa keluaran suara, visualizer, lirik, queue, tema, dan mute. Transparansi/blur dan perilaku snap di desktop Windows tetap perlu pemeriksaan visual langsung.
+Workflow [Windows portable build](.github/workflows/windows.yml) dapat dijalankan manual dan dipanggil oleh workflow release. Workflow membangun di Windows, menguji paket dengan lingkungan MSYS2 dibersihkan dari PATH, lalu menyimpan ZIP sebagai **artifact Actions**. Workflow release menyertakannya bersama paket Linux setelah semua build lolos. Pengujian meliputi GTK, audio tanpa keluaran suara, visualizer, lirik, queue, tema, mute, dan tombol media Windows.
 
 ## Build dan pengujian
 
