@@ -25,15 +25,21 @@ from gi.repository import Gtk, Gdk, GLib, Gst, Pango, GdkPixbuf
 
 Gst.init(None)
 AUDIO = {'.mp3', '.flac', '.ogg', '.opus', '.wav', '.m4a', '.aac', '.wma'}
+PLAYER_NORMAL_WIDTH = 435
+PLAYER_PANEL_WIDTH = 300
+PANEL_WIDTH = 280
+LYRIC_STRIP_WIDTH = PLAYER_PANEL_WIDTH + PANEL_WIDTH
 CSS = b'''
 #notch-window { font-size: 12px; background-color: transparent; color: #fafafa; }
 #bar { background: #08090b; }
 #notch { background: #101116; border: 1px solid #292b35; border-radius: 0 0 16px 16px; transition: border-radius 180ms ease-out; }
 #notch.floating { border-radius: 20px; border-top: 1px solid #292b35; }
 #notch.docked { border-color: transparent; border-radius: 0 0 16px 16px; box-shadow: none; transition: none; }
-#player { padding: 8px 8px 9px; }
+#player { padding: 8px 11px 9px; }
 #dock-handle { background: #101116; color: #b7bbc8; border: none; box-shadow: none; border-radius: 0 0 8px 8px; padding: 0 10px; min-width: 24px; min-height: 12px; font-size: 10px; }
 #dock-handle:hover { color: #fafafa; }
+#lyric-peek { background: #101116; border: 1px solid #292b35; border-top: none; border-radius: 0 0 14px 14px; padding: 5px 12px 6px; }
+#lyric-peek-label { color: #fafafa; font-size: 13px; font-weight: bold; }
 #drawer { padding: 8px; }
 #panel-divider { min-width: 1px; min-height: 0; border: none; background: linear-gradient(to bottom, rgba(145,151,166,0), rgba(145,151,166,0.65) 25%, rgba(145,151,166,0.65) 75%, rgba(145,151,166,0)); }
 #panel-divider.horizontal { background: linear-gradient(to right, rgba(145,151,166,0), rgba(145,151,166,0.65) 25%, rgba(145,151,166,0.65) 75%, rgba(145,151,166,0)); }
@@ -66,7 +72,7 @@ CSS = b'''
 #brand { color: #757b88; font-size: 11px; letter-spacing: 2px; }
 #notch button { background: transparent; border: none; box-shadow: none; color: #e9ebf0; border-radius: 7px; padding: 1px 3px; min-width: 12px; min-height: 16px; }
 #notch button:hover { background: #252832; }
-#notch #overflow-menu { border-radius: 14px; min-width: 22px; min-height: 22px; font-size: 18px; background: #252832; }
+#notch #overflow-menu { border-radius: 15px; min-width: 24px; min-height: 24px; font-size: 19px; background: #252832; }
 #player-menu, #player-submenu { background: #101116; color: #fafafa; border: 1px solid #292b35; border-radius: 10px; padding: 3px; font-size: 12px; }
 #player-menu menuitem, #player-submenu menuitem { color: #e9ebf0; padding: 2px 4px; min-width: 0; min-height: 19px; border-radius: 5px; }
 #player-menu menuitem:hover, #player-submenu menuitem:hover { background: #252832; }
@@ -75,7 +81,7 @@ CSS = b'''
 #player-submenu scale trough { background: #30323a; min-height: 3px; }
 #player-submenu scale highlight { background: #d8dde8; }
 #player-submenu scale slider { background: #ffffff; min-width: 9px; min-height: 9px; }
-#notch #play { background: #f2f3f5; color: #0a0b0e; border-radius: 14px; min-width: 20px; }
+#notch #play { background: #f2f3f5; color: #0a0b0e; border-radius: 15px; min-width: 24px; }
 #notch scale trough { background: #30323a; min-height: 3px; border: none; }
 #notch scale highlight { background: #d8dde8; min-height: 3px; }
 #notch scale slider { background: #ffffff; min-width: 8px; min-height: 8px; border: none; box-shadow: none; }
@@ -214,6 +220,26 @@ class Notch(Gtk.Window):
         root.pack_start(self.body_revealer, False, False, 0)
         center = Gtk.Box()
         self.body_revealer.add(center)
+        self.peek_revealer = Gtk.Revealer()
+        self.peek_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_DOWN)
+        self.peek_revealer.set_transition_duration(220)
+        self.peek_revealer.set_reveal_child(False)
+        root.pack_start(self.peek_revealer, False, False, 0)
+        peek_center = Gtk.Box()
+        self.peek_revealer.add(peek_center)
+        peek_center.pack_start(Gtk.Box(), True, True, 0)
+        self.peek_notch = Gtk.Box()
+        self.peek_notch.set_name('lyric-peek')
+        self.peek_notch.set_size_request(LYRIC_STRIP_WIDTH, 30)
+        peek_center.pack_start(self.peek_notch, False, False, 0)
+        peek_center.pack_start(Gtk.Box(), True, True, 0)
+        self.peek_lyrics = Gtk.Label(label='Lirik akan tampil di sini', xalign=0.5)
+        self.peek_lyrics.set_name('lyric-peek-label')
+        self.peek_lyrics.set_ellipsize(Pango.EllipsizeMode.END)
+        self.peek_lyrics.set_single_line_mode(True)
+        self.peek_lyrics.set_max_width_chars(42)
+        self.peek_lyrics.set_tooltip_text('Arahkan pointer ke notch untuk membuka player')
+        self.peek_notch.pack_start(self.peek_lyrics, True, True, 0)
         self.dock_handle = Gtk.Button(label='▴')
         self.dock_handle.set_name('dock-handle')
         self.dock_handle.set_halign(Gtk.Align.CENTER)
@@ -238,7 +264,7 @@ class Notch(Gtk.Window):
         player = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         self.player_widget = player
         player.set_name('player')
-        player.set_size_request(350, 128)
+        player.set_size_request(PLAYER_NORMAL_WIDTH, 128)
         player.set_valign(Gtk.Align.CENTER)
         self.player_column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         shell.pack_start(self.player_column, False, False, 0)
@@ -262,7 +288,7 @@ class Notch(Gtk.Window):
         player.pack_start(song, True, True, 0)
         self.cover = Gtk.Image.new_from_icon_name('audio-x-generic', Gtk.IconSize.DIALOG)
         self.cover.set_name('cover')
-        self.cover.set_size_request(44, 44)
+        self.cover.set_size_request(48, 48)
         self.cover.set_valign(Gtk.Align.CENTER)
         song.pack_start(self.cover, False, False, 0)
         info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
@@ -294,7 +320,7 @@ class Notch(Gtk.Window):
 
         bottom = Gtk.Box(spacing=5)
         player.pack_start(bottom, False, False, 0)
-        controls = Gtk.Box(spacing=15)
+        controls = Gtk.Box(spacing=18)
         self.transport_controls = controls
         controls.set_halign(Gtk.Align.CENTER)
         bottom.pack_start(controls, True, True, 0)
@@ -307,7 +333,7 @@ class Notch(Gtk.Window):
         top.remove(self.repeat_button)
         controls.pack_start(self.repeat_button, False, False, 0)
         for control in controls.get_children():
-            control.get_image().set_pixel_size(16)
+            control.get_image().set_pixel_size(18)
         volume_row = Gtk.Box(spacing=4)
         volume_row.set_size_request(100, -1)
         volume_row.set_no_show_all(True)
@@ -346,7 +372,7 @@ class Notch(Gtk.Window):
         shell.pack_start(self.drawer, False, False, 0)
         self.drawer_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.drawer_body.set_name('drawer')
-        self.drawer_body.set_size_request(280, 128)
+        self.drawer_body.set_size_request(PANEL_WIDTH, 128)
         panel_frame = Gtk.Box(spacing=0)
         self.panel_frame = panel_frame
         self.panel_divider = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
@@ -377,7 +403,7 @@ class Notch(Gtk.Window):
         lyric_frame.pack_start(self.lyric_divider, False, False, 0)
         self.lyric_body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.lyric_body.set_name('drawer')
-        self.lyric_body.set_size_request(280, 128)
+        self.lyric_body.set_size_request(PANEL_WIDTH, 128)
         lyric_frame.pack_start(self.lyric_body, True, True, 0)
         self.visualizer_top = Gtk.DrawingArea()
         self.visualizer_top.set_size_request(-1, 30)
@@ -692,11 +718,20 @@ class Notch(Gtk.Window):
         self.dock_autohide = not self.dock_autohide
         self.autohide_wait_exit = self.dock_autohide
         self.hover_left_at = None
-        self.body_revealer.set_reveal_child(not self.dock_autohide)
+        if self.dock_autohide:
+            ok, position = self.player.query_position(Gst.Format.TIME)
+            self.update_lyrics(position / Gst.SECOND if ok else 0)
+        self.set_autohide_open(not self.dock_autohide)
         self.update_dock_handle()
 
+    def set_autohide_open(self, opened):
+        self.body_revealer.set_reveal_child(opened)
+        self.peek_revealer.set_reveal_child(self.docked and self.dock_autohide and not opened)
+        self.dock_handle.set_visible(self.docked and opened)
+
     def update_dock_handle(self):
-        self.dock_handle.set_visible(self.docked)
+        opened = not self.dock_autohide or self.body_revealer.get_reveal_child()
+        self.dock_handle.set_visible(self.docked and opened)
         self.dock_handle.set_label('▴' if self.dock_autohide else '▾')
         self.dock_handle.set_tooltip_text(
             'Klik untuk tetap terbuka' if self.dock_autohide else 'Sembunyikan otomatis; arahkan pointer ke atas untuk membuka')
@@ -730,9 +765,9 @@ class Notch(Gtk.Window):
             return True
         if self.browse_open or self.player_menu.get_mapped() or inside:
             self.hover_left_at = None
-            self.body_revealer.set_reveal_child(True)
+            self.set_autohide_open(True)
         else:
-            self.body_revealer.set_reveal_child(False)
+            self.set_autohide_open(False)
         return True
 
     def start_move(self, widget, event):
@@ -771,7 +806,7 @@ class Notch(Gtk.Window):
         if self.docked:
             self.docked = False
             self.dock_autohide = False
-            self.body_revealer.set_reveal_child(True)
+            self.set_autohide_open(True)
             self.update_dock_handle()
             self.connection_progress = 0.0
             if self.bezel_bar:
@@ -885,26 +920,45 @@ class Notch(Gtk.Window):
         window = self.get_window()
         if not window:
             return
-        # Only the notch receives input; the full-width bar is decorative.
+        body_visible = self.body_revealer.get_reveal_child() or self.body_revealer.get_child_revealed()
         coordinates = self.notch.translate_coordinates(self, 0, 0)
         if coordinates is None:
             return
         x, y = coordinates
         allocation = self.notch.get_allocation()
-        region = cairo.Region(cairo.RectangleInt(x, y, allocation.width, allocation.height))
+        region = cairo.Region()
+        if body_visible:
+            region.union(cairo.RectangleInt(x, y, allocation.width, allocation.height))
+        peek_rectangle = None
+        if self.peek_revealer.get_reveal_child() or self.peek_revealer.get_child_revealed():
+            coordinates = self.peek_notch.translate_coordinates(self, 0, 0)
+            if coordinates is not None:
+                px, py = coordinates
+                peek_rectangle = cairo.RectangleInt(px, py, self.peek_notch.get_allocated_width(),
+                                                    self.peek_notch.get_allocated_height())
+                region.union(peek_rectangle)
         if self.docked:
-            hx, hy = self.dock_handle.translate_coordinates(self, 0, 0)
-            region.union(cairo.RectangleInt(hx, hy, self.dock_handle.get_allocated_width(), self.dock_handle.get_allocated_height()))
+            handle_coordinates = self.dock_handle.translate_coordinates(self, 0, 0)
+            if self.dock_handle.get_visible() and handle_coordinates is not None:
+                hx, hy = handle_coordinates
+                region.union(cairo.RectangleInt(hx, hy, self.dock_handle.get_allocated_width(),
+                                                self.dock_handle.get_allocated_height()))
             region.union(cairo.RectangleInt(x, 0, allocation.width, 3))
         region.intersect(cairo.RectangleInt(0, 0, self.get_allocated_width(), self.get_allocated_height()))
         window.input_shape_combine_region(region, 0, 0)
         if sys.platform == 'win32':
-            shape = (x, y, allocation.width, allocation.height, self.docked, self.get_allocated_height())
+            shape = (x, y, allocation.width, allocation.height, self.docked,
+                     self.get_allocated_height(), body_visible, peek_rectangle is not None)
             if getattr(self, '_window_shape', None) != shape:
-                outline = window_shape(*shape[:5])
+                outline = (window_shape(*shape[:5]) if body_visible else cairo.Region())
                 if self.docked:
-                    outline.union(cairo.RectangleInt(hx, hy, self.dock_handle.get_allocated_width(), self.dock_handle.get_allocated_height()))
+                    if self.dock_handle.get_visible() and handle_coordinates is not None:
+                        hx, hy = handle_coordinates
+                        outline.union(cairo.RectangleInt(hx, hy, self.dock_handle.get_allocated_width(),
+                                                        self.dock_handle.get_allocated_height()))
                     outline.union(cairo.RectangleInt(x, 0, allocation.width, 3))
+                    if peek_rectangle is not None:
+                        outline.union(peek_rectangle)
                 outline.intersect(cairo.RectangleInt(0, 0, self.get_allocated_width(), self.get_allocated_height()))
                 window.shape_combine_region(outline, 0, 0)
                 self._window_shape = shape
@@ -914,11 +968,14 @@ class Notch(Gtk.Window):
             self.update_input_region()
         if not self.docked:
             return False
-        coordinates = self.notch.translate_coordinates(self, 0, 0)
+        peek_visible = (self.peek_revealer.get_reveal_child()
+                        and not self.body_revealer.get_reveal_child())
+        connection_widget = self.peek_notch if peek_visible else self.notch
+        coordinates = connection_widget.translate_coordinates(self, 0, 0)
         if coordinates is None:
             return False
         x, y = coordinates
-        right = x + self.notch.get_allocated_width()
+        right = x + connection_widget.get_allocated_width()
         radius = max(0.01, 24 * self.connection_progress)
         bar_height = 2
         shoulder_y = y + bar_height
@@ -999,7 +1056,9 @@ class Notch(Gtk.Window):
         self.panel_frame.set_orientation(Gtk.Orientation.VERTICAL if below else Gtk.Orientation.HORIZONTAL)
         self.drawer.set_transition_type(
             Gtk.RevealerTransitionType.SLIDE_DOWN if below else Gtk.RevealerTransitionType.SLIDE_RIGHT)
-        self.player_widget.set_size_request(300 if self.lyrics_enabled or (self.docked and self.queue_enabled) else 350, 128)
+        self.player_widget.set_size_request(
+            PLAYER_PANEL_WIDTH if self.lyrics_enabled or (self.docked and self.queue_enabled)
+            else PLAYER_NORMAL_WIDTH, 128)
         self.drawer_body.set_size_request(-1 if below else 245, 112)
         self.panel_divider.set_orientation(Gtk.Orientation.HORIZONTAL if below else Gtk.Orientation.VERTICAL)
         self.panel_divider.set_size_request(260 if below else 1, 1 if below else 64)
@@ -1381,7 +1440,7 @@ class Notch(Gtk.Window):
         if metadata['picture']:
             try:
                 loader = GdkPixbuf.PixbufLoader()
-                loader.set_size(44, 44)
+                loader.set_size(48, 48)
                 loader.write(metadata['picture'])
                 loader.close()
                 self.cover.set_from_pixbuf(loader.get_pixbuf())
@@ -1390,7 +1449,8 @@ class Notch(Gtk.Window):
         return False
 
     def update_lyrics(self, seconds):
-        if not self.lyrics_enabled:
+        if not self.lyrics_enabled and not (getattr(self, 'docked', False)
+                                            and getattr(self, 'dock_autohide', False)):
             return
         self.lyric_position = seconds
         if self.lyric_lines:
@@ -1402,10 +1462,14 @@ class Notch(Gtk.Window):
             escaped = GLib.markup_escape_text(text.replace('\n', ' '))
             if index >= 0:
                 self.lyrics.set_markup(f'<span weight="bold">{escaped}</span>')
+                self.peek_lyrics.set_markup(f'<span weight="bold">{escaped}</span>')
             else:
                 self.lyrics.set_markup(escaped)
+                self.peek_lyrics.set_markup(escaped)
         else:
-            self.lyrics.set_text(next(iter(self.plain_lyrics), 'Lirik tidak tersedia'))
+            text = next(iter(self.plain_lyrics), 'Lirik tidak tersedia')
+            self.lyrics.set_text(text)
+            self.peek_lyrics.set_text(text.replace('\n', ' '))
 
     def update_lyric_context(self):
         if not self.lyric_lines:
@@ -1532,6 +1596,7 @@ class Notch(Gtk.Window):
         self.audio_info.set_tooltip_text(None)
         self.cover.set_from_icon_name('audio-x-generic', Gtk.IconSize.DIALOG)
         self.lyrics.set_text('Lirik akan tampil di sini')
+        self.peek_lyrics.set_text('Lirik akan tampil di sini')
         self.lyrics.set_tooltip_text(None)
         self.seek.set_value(0)
         self.time.set_text('0:00 / 0:00')

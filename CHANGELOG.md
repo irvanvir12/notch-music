@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.0
+
+- Mengubah auto-hide notch menjadi strip ringkas setinggi satu baris yang tetap menampilkan lirik sesuai timing; hover membuka player penuh sementara.
+- Melebarkan notch normal menjadi 75% dari lebar mode lirik serta menyesuaikan ukuran cover dan ikon transport.
+
 ## v0.5.0
 
 - Linux: menambahkan integrasi MPRIS untuk Play/Pause, Next, Previous, Stop, seek, volume, repeat, shuffle, dan metadata melalui headset/TWS, keyboard multimedia, atau kontrol media desktop.

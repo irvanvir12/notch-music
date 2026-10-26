@@ -6,7 +6,8 @@ from notch_music import Notch
 
 class LyricsTests(unittest.TestCase):
     def state(self):
-        return SimpleNamespace(theme='dark', lyrics_enabled=True, lyrics=Mock(), plain_lyrics=[],
+        return SimpleNamespace(theme='dark', lyrics_enabled=True, docked=False, dock_autohide=False,
+                               lyrics=Mock(), peek_lyrics=Mock(), plain_lyrics=[],
                                lyric_lines=[(1.0, 'First & <line>'), (3.0, 'Second'), (5.0, 'Third')])
 
     def test_before_start_has_no_highlight(self):
@@ -22,6 +23,15 @@ class LyricsTests(unittest.TestCase):
         self.assertNotIn('foreground=', markup)
         self.assertNotIn('Second', markup)
         self.assertNotIn('\n', markup)
+        self.assertEqual(state.peek_lyrics.set_markup.call_args.args[0], markup)
+
+    def test_hidden_notch_updates_lyrics_when_panel_is_off(self):
+        state = self.state()
+        state.lyrics_enabled = False
+        state.docked = True
+        state.dock_autohide = True
+        Notch.update_lyrics(state, 3.2)
+        self.assertIn('Second', state.peek_lyrics.set_markup.call_args.args[0])
 
     def test_seek_updates_highlight_in_both_directions(self):
         state = self.state()

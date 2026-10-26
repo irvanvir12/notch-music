@@ -14,7 +14,7 @@ Pilih paket di [GitHub Releases](https://github.com/irvanvir12/notch-music/relea
 | OS | Paket | Cara menjalankan |
 | --- | --- | --- |
 | Ubuntu / Zorin / Linux x86_64 | `Notch-Music-x86_64.AppImage` | Beri izin executable lalu jalankan |
-| CachyOS / Arch x86_64 | `notch-music-0.5.0-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
+| CachyOS / Arch x86_64 | `notch-music-0.6.0-1-x86_64.pkg.tar.zst` | Pasang melalui `pacman -U` |
 | Windows 10/11 x64 | `Notch-Music-Windows-x64.zip` | Ekstrak seluruh ZIP lalu buka `Notch-Music.exe` |
 
 Contoh untuk AppImage:
@@ -75,7 +75,7 @@ Screenshot aplikasi dari desktop pengguna; klik gambar untuk melihat ukuran penu
 
 Saat mengambang, **⋯ → Minimize** berada sebelum Close. Musik tetap berjalan; buka kembali lewat taskbar. Pada Wayland layer-shell, jendela taskbar pemulihan menyediakan tombol **Kembalikan player**.
 
-Saat menempel ke atas, klik **segitiga di tengah bawah notch** hingga mengarah **ke atas** untuk mengaktifkan auto-hide. Player bergeser ke atas, menyisakan tab kecil. Arahkan pointer ke tepi atas di posisi notch untuk membukanya sementara; saat pointer keluar, player langsung bergeser menutup lagi. Hover tidak mengubah mode auto-hide. Saat terbuka, klik segitiga hingga mengarah **ke bawah** untuk menjadikannya tetap terbuka. Queue, lirik, dan pemutaran tetap dipertahankan.
+Saat menempel ke atas, klik **segitiga di tengah bawah notch** hingga mengarah **ke atas** untuk mengaktifkan auto-hide. Player berubah menjadi strip notch setinggi satu baris yang tetap menampilkan lirik sesuai timing. Arahkan pointer ke strip untuk membuka player sementara; saat pointer keluar, player kembali menjadi strip lirik. Hover tidak mengubah mode auto-hide. Saat terbuka, klik segitiga hingga mengarah **ke bawah** untuk menjadikannya tetap terbuka. Queue, lirik, dan pemutaran tetap dipertahankan.
 
 ## Tombol media dan headset Bluetooth / TWS
 
@@ -109,7 +109,7 @@ Player awal hanya menampilkan kontrol musik yang ringkas. Saat mengambang, **⋯
 | ⋯ → Lirik (On) / (Off) | Tampilkan/sembunyikan lirik |
 | ⋯ → Tema | Pilih Dark, Light, atau Blur |
 | ⋯ → Minimize | Minimalkan player saat mengambang; pulihkan lewat taskbar |
-| Segitiga bawah notch | Aktifkan auto-hide; klik lagi untuk tetap terbuka |
+| Segitiga bawah notch | Aktifkan strip lirik auto-hide; klik lagi untuk tetap terbuka |
 | ⋯ → Close | Keluar |
 
 ## Jalankan dari source
@@ -137,7 +137,7 @@ Paket native `.pkg.tar.zst` juga tersedia di [Releases](https://github.com/irvan
 
 ```bash
 sudo pacman -Syu
-sudo pacman -U ./notch-music-0.5.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./notch-music-0.6.0-1-x86_64.pkg.tar.zst
 notch-music
 ```
 
