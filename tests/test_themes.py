@@ -4,6 +4,9 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
+import gi
+
+gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 from notch_music import CSS, Notch
 from themes import THEMES, theme_css
@@ -23,6 +26,14 @@ class ThemeTests(unittest.TestCase):
     def test_blur_has_transparency(self):
         self.assertLess(THEMES['blur']['surface'][3], 1)
         self.assertIn(b'background: rgba(16, 17, 22, 0.62)', theme_css(CSS, 'blur'))
+
+    def test_hidden_lyric_strip_has_no_outline(self):
+        for name in THEMES:
+            css = theme_css(CSS, name).decode()
+            rule = css.split('#lyric-peek {', 1)[1].split('}', 1)[0]
+            self.assertIn('border: none', rule)
+            self.assertIn('background-image: none', rule)
+            self.assertIn('box-shadow: none', rule)
 
     def test_light_changes_text_and_surface(self):
         css = theme_css(CSS, 'light')

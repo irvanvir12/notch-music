@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.1
+
+- Menyamakan lebar mode notch normal, queue, lirik, dan strip auto-hide agar perubahan isi tidak menggeser sisi player.
+- Menghilangkan border, shadow, background-image, overlap satu piksel, dan tumpang tindih busur yang membentuk garis menggantung di ujung lekukan notch.
+- Memperbesar cover, teks informasi lagu, menu, dan kontrol transport serta merapatkan padding pada tampilan awal notch.
+- Mengganti transisi buka/tutup queue dan lirik secara atomik agar isi player tidak tertekan pada ukuran antara, serta langsung menutup menu setelah pilihan ditekan.
+
 ## v0.6.0
 
 - Mengubah auto-hide notch menjadi strip ringkas setinggi satu baris yang tetap menampilkan lirik sesuai timing; hover membuka player penuh sementara.

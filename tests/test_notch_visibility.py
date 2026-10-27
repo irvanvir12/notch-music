@@ -2,7 +2,9 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from notch_music import Notch, Gdk, LYRIC_STRIP_WIDTH, PLAYER_NORMAL_WIDTH
+from notch_music import (DOCK_PLAYER_WIDTH, DOCK_WIDTH, Notch, Gdk,
+                         LYRIC_STRIP_WIDTH, PANEL_WIDTH, PLAYER_NORMAL_WIDTH,
+                         PLAYER_PANEL_WIDTH)
 
 
 def dock():
@@ -19,8 +21,11 @@ def dock():
 
 
 class NotchVisibilityTests(unittest.TestCase):
-    def test_normal_notch_is_three_quarters_of_lyric_width(self):
-        self.assertEqual(PLAYER_NORMAL_WIDTH, round(LYRIC_STRIP_WIDTH * .75))
+    def test_all_docked_modes_share_one_width(self):
+        self.assertEqual(DOCK_WIDTH, LYRIC_STRIP_WIDTH)
+        self.assertEqual(DOCK_WIDTH, DOCK_PLAYER_WIDTH + 2)
+        self.assertEqual(DOCK_WIDTH, PLAYER_PANEL_WIDTH + PANEL_WIDTH + 3)
+        self.assertEqual(PLAYER_NORMAL_WIDTH, round(DOCK_WIDTH * .75))
 
     def test_windows_does_not_create_monitor_wide_bezel(self):
         state = SimpleNamespace(bezel_bar=None)
